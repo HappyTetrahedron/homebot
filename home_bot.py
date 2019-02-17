@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import random
-import re
 import yaml
 import logging
 from telegram.ext import Updater, CommandHandler, MessageHandler
@@ -11,8 +10,6 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
-
-RECEIVE_PATTERN = re.compile('g[eo]t', re.I)
 
 AFFIRMATIONS = [
     "Cool",
@@ -28,8 +25,6 @@ AFFIRMATIONS = [
 
 
 class PollBot:
-    def __init__(self):
-        self.db = None
 
     def get_affirmation(self):
         return random.choice(AFFIRMATIONS)
