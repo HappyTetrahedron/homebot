@@ -35,7 +35,8 @@ class PollBot:
         update.message.reply_text(self.get_affirmation())
 
     # Help command handler
-    def handle_help(self, bot, update):
+    @staticmethod
+    def handle_help(bot, update):
         """Send a message when the command /help is issued."""
         helptext = "I am HappyTetrahedron's personal butler.\n\b" \
                    "If you are not HappyTetrahedron, I fear I won't be useful to you."
@@ -43,7 +44,8 @@ class PollBot:
         update.message.reply_text(helptext, parse_mode="Markdown")
 
     # Error handler
-    def handle_error(self, bot, update, error):
+    @staticmethod
+    def handle_error(bot, update, error):
         """Log Errors caused by Updates."""
         logger.warning('Update "%s" caused error "%s"', update, error)
 
