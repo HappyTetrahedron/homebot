@@ -6,8 +6,8 @@ app = Flask(__name__)
 params = {}
 
 
-def init(bot, config):
-    params['bot'] = bot
+def init(sendmessage, config):
+    params['send'] = sendmessage
     params['config'] = config
 
 
@@ -19,6 +19,5 @@ def run():
 def forward_message():
     data = request.get_json()
     message = data['message']
-
-    params['bot'].send_message(params['config']['owner_id'], message)
+    params['send'](message)
     return ""

@@ -10,6 +10,7 @@ import webserver
 import dataset
 
 import inventory_handler
+import reminder_handler
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -30,6 +31,7 @@ AFFIRMATIONS = [
 
 HANDLERS = {
     'inv': inventory_handler,
+    'rem': reminder_handler,
 }
 
 
@@ -37,6 +39,7 @@ class PollBot:
     def __init__(self):
         self.db = None
         self.config = None
+        self.bot = None
 
     @staticmethod
     def get_affirmation():
@@ -56,6 +59,9 @@ class PollBot:
                 row.append(button)
             buttons.append(row)
         return InlineKeyboardMarkup(buttons)
+
+    def send_message(self, message):
+        self.bot.send_message(self.config['owner_id'], message)
 
     def handle_message(self, bot, update):
         if str(update.message.from_user.id) != str(self.config['owner_id']):
@@ -130,9 +136,13 @@ class PollBot:
         self.db = dataset.connect('sqlite:///{}'.format(config['db']))
         self.config = config
 
+        for handler in HANDLERS.values():
+            handler.setup(self.config, self.send_message)
+
         """Start the bot."""
         # Create the EventHandler and pass it your bot's token.
         updater = Updater(config['token'])
+        self.bot = updater.bot
 
         # Get the dispatcher to register handlers
         dp = updater.dispatcher
@@ -149,10 +159,13 @@ class PollBot:
         # Start the Bot
         updater.start_polling()
 
-        webserver.init(updater.bot, config)
+        webserver.init(self.send_message, self.config)
         webserver.run()
 
         updater.idle()
+
+        for handler in HANDLERS.values():
+            handler.teardown()
 
 
 def main(opts):
