@@ -9,6 +9,8 @@ SEARCH_PATTERN = re.compile('^\s*where\s+(is|are)\s+the\s+(.+?)\??\s*$',
 LIST_PATTERN = re.compile('^\s*what\s+is\s+(.+?)\s+the\s+(.+?)\??\s*$',
                           flags=re.I)
 
+key = 'inv'
+
 
 def matches_message(message):
     return PLACE_PATTERN.match(message) is not None \

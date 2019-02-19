@@ -4,11 +4,14 @@ import threading
 import parsedatetime
 import datetime
 import dataset
+from utils import get_affirmation
 
 # PATTERN = re.compile('^remind\s+(?:me\s+)?(.+?)(?:\s+to|:)\s+(.+?)\s*$',
 PATTERN = re.compile('^remind(?:\s+me)?\s+(.+?)\s*(to|:|that)\s+(.+?)\s*$',
                      flags=re.I)
 params = {}
+
+key = 'rem'
 
 calendar = parsedatetime.Calendar()
 
@@ -20,6 +23,11 @@ UNITS = [
     'month',
     'year',
 ]
+
+REMOVE_BUTTONS = 'rb'
+REMOVE_REMINDER = 'rm'
+REMOVE_PERIODIC_REMINDER = 'rmp'
+SNOOZE_REMINDER = 'sn'
 
 
 def setup(config, send_message):
@@ -62,10 +70,52 @@ def handle(message, db):
         msg = "I set up your reminder for {}"
 
     table = db['reminders']
-    table.insert(reminder)
-    return msg.format(
-        reminder['next'].strftime("%A, %B %-d %Y at %-H:%M")
-    )
+    reminder_id = table.insert(reminder)
+    return {
+        'message': msg.format(
+            reminder['next'].strftime("%A, %B %-d %Y at %-H:%M")
+        ),
+        'buttons': [[{
+            'text': "Remove this reminder",
+            'data': "{}:{}".format(reminder_id, REMOVE_REMINDER)
+        }]],
+    }
+
+
+def handle_button(data, db):
+    parts = data.split(':')
+    reminder_id = int(parts[0])
+    method = parts[1]
+
+    table = db['reminders']
+    reminder = table.find_one(id=reminder_id)
+    answer = {}
+    if method == REMOVE_REMINDER:
+        table.delete(id=reminder_id)
+        answer = {
+            'answer': "Reminder deleted",
+            'message': "This reminder was deleted.",
+        }
+    if method == REMOVE_BUTTONS:
+        answer = {
+            'answer': get_affirmation(),
+            'message': reminder_to_string(reminder),
+        }
+    if method == REMOVE_PERIODIC_REMINDER:
+        table.delete(id=reminder_id)
+        answer = {
+            'answer': "Reminder deleted",
+            'message': "{}\n\nThis periodic reminder was deleted.".format(reminder_to_string(reminder)),
+        }
+    if method == SNOOZE_REMINDER:
+        reminder['next'] = reminder['next'] + datetime.timedelta(minutes=1)
+        reminder['active'] = True
+        table.update(reminder, ['id'])
+        answer = {
+            'answer': "Reminder snoozed",
+            'message': "{}\n\nThis reminder was snoozed.".format(reminder_to_string(reminder))
+        }
+    return answer
 
 
 def create_periodic_reminder(time_string, subject, separator_word):
@@ -84,7 +134,7 @@ def create_periodic_reminder(time_string, subject, separator_word):
         if part == 'other':
             interval = 2
         for potential_unit in UNITS:
-            if part.startswith(potential_unit):
+            if part.lower().startswith(potential_unit):
                 unit = potential_unit
                 rest = " ".join(time_string_parts[i+1:])
     if not unit:
@@ -211,6 +261,15 @@ def unit_to_readable(unit, singular=False):
     return unit if singular else unit + 's'
 
 
+def reminder_to_string(reminder):
+    return "Remember{} {}".format(
+        ' to' if 'separator' not in reminder or not reminder['separator'] else
+        reminder['separator'] if len(reminder['separator']) == 1 else
+        " {}".format(reminder['separator']),
+        reminder['subject'])
+
+
+
 def schedule_pending():
     db = params['db']
     table = db['reminders']
@@ -223,16 +282,30 @@ def schedule_pending():
         # dataset returns dates as string but only accepts them as datetime
         reminder['next'] = datetime.datetime.strptime(reminder['next'], '%Y-%m-%d %H:%M:%S.%f')
 
-        send("Remember{} {}".format(
-            ' to' if 'separator' not in reminder or not reminder['separator'] else
-            reminder['separator'] if len(reminder['separator']) == 1 else
-            " {}".format(reminder['separator']),
-            reminder['subject'])
-        )
+        msg = reminder_to_string(reminder)
+
         if reminder['periodic']:
             advance_periodic_reminder(reminder)
+            buttons = [[{
+                'text': "Remove this reminder",
+                'data': '{}:{}'.format(reminder['id'], REMOVE_PERIODIC_REMINDER)
+            }]]
         else:
             reminder['active'] = False
+            buttons = [
+                [{
+                    'text': 'Got it!',
+                    'data': '{}:{}'.format(reminder['id'], REMOVE_BUTTONS),
+                }],
+                [{
+                    'text': "Remind me again tomorrow",
+                    'data': '{}:{}'.format(reminder['id'], SNOOZE_REMINDER),
+                }]
+            ]
+        send({
+            'message': msg,
+            'buttons': buttons,
+        }, key=key)
         table.update(reminder, ['id'])
 
 

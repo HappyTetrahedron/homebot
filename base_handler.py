@@ -1,3 +1,6 @@
+key = 'CHANGEME'
+
+
 def setup(config, send_message):
     pass
 

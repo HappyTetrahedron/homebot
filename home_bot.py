@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import random
 import yaml
 import logging
 
@@ -12,26 +11,16 @@ import dataset
 import inventory_handler
 import reminder_handler
 
+from utils import get_affirmation
+
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 
-AFFIRMATIONS = [
-    "Cool",
-    "Nice",
-    "Doing great",
-    "Awesome",
-    "Okey dokey",
-    "Neat",
-    "Whoo",
-    "Wonderful",
-    "Splendid",
-]
-
 HANDLERS = {
-    'inv': inventory_handler,
-    'rem': reminder_handler,
+    inventory_handler.key: inventory_handler,
+    reminder_handler.key: reminder_handler,
 }
 
 
@@ -40,10 +29,6 @@ class PollBot:
         self.db = None
         self.config = None
         self.bot = None
-
-    @staticmethod
-    def get_affirmation():
-        return random.choice(AFFIRMATIONS)
 
     @staticmethod
     def assemble_inline_buttons(button_data, prefix_key):
@@ -60,8 +45,18 @@ class PollBot:
             buttons.append(row)
         return InlineKeyboardMarkup(buttons)
 
-    def send_message(self, message):
-        self.bot.send_message(self.config['owner_id'], message)
+    def send_message(self, message, key=None):
+        if isinstance(message, dict):
+            buttons = None
+            if 'buttons' in message:
+                if not key:
+                    raise ValueError("Using inline buttons requires you to pass a key")
+                buttons = self.assemble_inline_buttons(message['buttons'], key)
+            self.bot.send_message(self.config['owner_id'],
+                                  message['message'],
+                                  reply_markup=buttons)
+        else:
+            self.bot.send_message(self.config['owner_id'], message)
 
     def handle_message(self, bot, update):
         if str(update.message.from_user.id) != str(self.config['owner_id']):
@@ -81,7 +76,7 @@ class PollBot:
                     update.message.reply_text(reply['message'], reply_markup=buttons)
                 return
 
-        update.message.reply_text(self.get_affirmation())
+        update.message.reply_text(get_affirmation())
 
     def handle_inline_button(self, bot, update):
         query = update.callback_query
