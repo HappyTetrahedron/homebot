@@ -3,7 +3,9 @@
 import random
 import yaml
 import logging
-from telegram.ext import Updater, CommandHandler, MessageHandler
+
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackQueryHandler
 import webserver
 import dataset
 
@@ -26,29 +28,85 @@ AFFIRMATIONS = [
     "Splendid",
 ]
 
-HANDLERS = [
-    inventory_handler,
-]
+HANDLERS = {
+    'inv': inventory_handler,
+}
 
 
 class PollBot:
     def __init__(self):
         self.db = None
+        self.config = None
 
     @staticmethod
     def get_affirmation():
         return random.choice(AFFIRMATIONS)
 
+    @staticmethod
+    def assemble_inline_buttons(button_data, prefix_key):
+        buttons = []
+        for row_data in button_data:
+            row = []
+            for button_data in row_data:
+                button = InlineKeyboardButton(button_data['text'],
+                                              callback_data='{}#{}'.format(
+                                                  prefix_key,
+                                                  button_data['data']
+                                              ))
+                row.append(button)
+            buttons.append(row)
+        return InlineKeyboardMarkup(buttons)
+
     def handle_message(self, bot, update):
-        if update.message.from_user.id != self.config['owner_id']:
+        if str(update.message.from_user.id) != str(self.config['owner_id']):
+            print(update.message.from_user.id)
+            print(self.config['owner_id'])
             update.message.reply_text("You're not my master. I won't talk to you!")
             return
-        for handler in HANDLERS:
+        for key, handler in HANDLERS.items():
             if handler.matches_message(update.message.text):
                 reply = handler.handle(update.message.text, self.db)
-                update.message.reply_text(reply)
+                if not isinstance(reply, dict):
+                    update.message.reply_text(reply)
+                else:
+                    buttons = None
+                    if 'buttons' in reply:
+                        buttons = self.assemble_inline_buttons(reply['buttons'], key)
+                    update.message.reply_text(reply['message'], reply_markup=buttons)
                 return
+
         update.message.reply_text(self.get_affirmation())
+
+    def handle_inline_button(self, bot, update):
+        query = update.callback_query
+        data = update.callback_query.data
+        data = data.split('#', 1)
+
+        if len(data) < 2:
+            query.answer("Something's wrong with this button.")
+            return
+
+        key = data[0]
+        payload = data[1]
+        if key not in HANDLERS:
+            query.answer("Something's wrong with this button.")
+            return
+
+        answer = HANDLERS[key].handle_button(payload, self.db)
+        if isinstance(answer, dict):
+            if 'message' in answer:
+                buttons = None
+                if 'buttons' in answer:
+                    buttons = self.assemble_inline_buttons(answer['buttons'], key)
+                bot.edit_message_text(
+                    text=answer['message'],
+                    reply_markup=buttons,
+                    chat_id=query.message.chat.id,
+                    message_id=query.message.message_id
+                )
+            query.answer(answer['answer'])
+        else:
+            query.answer(answer)
 
     # Help command handler
     @staticmethod
@@ -70,6 +128,7 @@ class PollBot:
             config = yaml.load(configfile)
 
         self.db = dataset.connect('sqlite:///{}'.format(config['db']))
+        self.config = config
 
         """Start the bot."""
         # Create the EventHandler and pass it your bot's token.
@@ -81,6 +140,9 @@ class PollBot:
         dp.add_handler(CommandHandler("help", self.handle_help))
 
         dp.add_error_handler(self.handle_error)
+
+        # Callback queries from button presses
+        dp.add_handler(CallbackQueryHandler(self.handle_inline_button))
 
         dp.add_handler(MessageHandler(None, self.handle_message))
 
