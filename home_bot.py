@@ -5,6 +5,9 @@ import yaml
 import logging
 from telegram.ext import Updater, CommandHandler, MessageHandler
 import webserver
+import dataset
+
+import inventory_handler
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -23,15 +26,28 @@ AFFIRMATIONS = [
     "Splendid",
 ]
 
+HANDLERS = [
+    inventory_handler,
+]
+
 
 class PollBot:
+    def __init__(self):
+        self.db = None
 
-    def get_affirmation(self):
+    @staticmethod
+    def get_affirmation():
         return random.choice(AFFIRMATIONS)
 
     def handle_message(self, bot, update):
-        print(update.message.from_user.id)
-        print(update.message.chat.id)
+        if update.message.from_user.id != self.config['owner_id']:
+            update.message.reply_text("You're not my master. I won't talk to you!")
+            return
+        for handler in HANDLERS:
+            if handler.matches_message(update.message.text):
+                reply = handler.handle(update.message.text, self.db)
+                update.message.reply_text(reply)
+                return
         update.message.reply_text(self.get_affirmation())
 
     # Help command handler
@@ -52,6 +68,8 @@ class PollBot:
     def run(self, opts):
         with open(opts.config, 'r') as configfile:
             config = yaml.load(configfile)
+
+        self.db = dataset.connect('sqlite:///{}'.format(config['db']))
 
         """Start the bot."""
         # Create the EventHandler and pass it your bot's token.
