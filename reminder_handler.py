@@ -49,111 +49,120 @@ def handle(message, db):
     separator_word = groups[1]
     subject = groups[2]
 
-    now = datetime.datetime.now()
     if 'every' in time_string or 'each' in time_string:
-        time_string_parts = time_string.split()
+        reminder = create_periodic_reminder(time_string, subject, separator_word)
 
-        interval = 0
-        unit = ""
-        rest = ""
-
-        for i, part in enumerate(time_string_parts):
-            if unit:
-                break
-            if part.isnumeric():
-                interval = int(part)
-            if part == 'other':
-                interval = 2
-            for potential_unit in UNITS:
-                if part.startswith(potential_unit):
-                    unit = potential_unit
-                    rest = " ".join(time_string_parts[i+1:])
-        if not unit:
-            unit = 'week'
-            rest = " ".join(time_string_parts[1:])
-        if not interval:
-            interval = 1
-
-        if rest:
-            date_time, parsed = calendar.parseDT(rest)
-            if parsed == 0:
-                if unit == 'month':
-                    day = int(re.sub('\D', '', rest))
-                    if 0 < day < 29:  # sorry we can't handle february otherwise.
-                        date_time = datetime.datetime(year=now.year, month=now.month, day=day, hour=7, minute=0)
-                    else:
-                        return "Oh no, I couldn't understand what you mean by \"{}\". Note that you can only use" \
-                               "dates (days of month) between 1 and 28, unfortunately.".format(rest)
-                else:
-                    return "Oh no, I couldn't understand what you mean by \"{}\".".format(rest)
-
-            if parsed == 1:
-                date_time = datetime.datetime.combine(date_time.date(), datetime.time(hour=7, minute=0))
-
-            if parsed == 2:
-                # time without date - only makes sense if unit is day or hour:
-                if unit != 'day' and unit != 'hour':
-                    return "Oh no, I couldn't understand what you mean by \"{}\". Note that you can only set" \
-                           "a time (without a weekday or date) if your reminder is every X days or hours".format(rest)
-        else:
-            if unit == 'min':
-                date_time = datetime.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour,
-                                              minute=now.minute)
-            elif unit == 'h':
-                date_time = datetime.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour)
-            elif unit == 'day' or unit == 'week':
-                date_time = datetime.datetime(year=now.year, month=now.month, day=now.day, hour=7)
-            elif unit == 'month':
-                date_time = datetime.datetime(year=now.year, month=now.month, day=1, hour=7)
-            elif unit == 'year':
-                date_time = datetime.datetime(year=now.year + 1, month=1, day=1, hour=7)
-
-        # phew.
-        reminder = {
-            'next': date_time,
-            'subject': subject,
-            'active': True,
-            'periodic': True,
-            'interval': interval,
-            'unit': unit,
-            'separator': separator_word,
-        }
-
-        if date_time < now:
-            advance_periodic_reminder(reminder)
-
-        table = db['reminders']
-        table.insert(reminder)
-
-        return "I set up your reminder for every {}{}. The first one will happen on {}".format(
-            "{} ".format(interval) if interval > 1 else "",
-            unit_to_readable(unit, interval == 1),
-            reminder['next'].strftime("%A, %B %-d %Y at %-H:%M")
-        )
+        msg = "I set up your reminder for every {}{}. The first one will happen on ".format(
+            "{} ".format(reminder['interval']) if reminder['interval'] > 1 else "",
+            unit_to_readable(reminder['unit'], reminder['interval'] == 1),
+        ) + '{}'
 
     else:
-        date_time, parsed = calendar.parseDT(time_string)
+        reminder = create_onetime_reminder(time_string, subject, separator_word)
+        msg = "I set up your reminder for {}"
+
+    table = db['reminders']
+    table.insert(reminder)
+    return msg.format(
+        reminder['next'].strftime("%A, %B %-d %Y at %-H:%M")
+    )
+
+
+def create_periodic_reminder(time_string, subject, separator_word):
+    now = datetime.datetime.now()
+    time_string_parts = time_string.split()
+
+    interval = 0
+    unit = ""
+    rest = ""
+
+    for i, part in enumerate(time_string_parts):
+        if unit:
+            break
+        if part.isnumeric():
+            interval = int(part)
+        if part == 'other':
+            interval = 2
+        for potential_unit in UNITS:
+            if part.startswith(potential_unit):
+                unit = potential_unit
+                rest = " ".join(time_string_parts[i+1:])
+    if not unit:
+        unit = 'week'
+        rest = " ".join(time_string_parts[1:])
+    if not interval:
+        interval = 1
+
+    if rest:
+        date_time, parsed = calendar.parseDT(rest)
         if parsed == 0:
-            return "Sorry, I don't understand what you mean by \"{}\".".format(time_string)
+            if unit == 'month':
+                day = int(re.sub('\D', '', rest))
+                if 0 < day < 29:  # sorry we can't handle february otherwise.
+                    date_time = datetime.datetime(year=now.year, month=now.month, day=day, hour=7, minute=0)
+                else:
+                    return "Oh no, I couldn't understand what you mean by \"{}\". Note that you can only use" \
+                           "dates (days of month) between 1 and 28, unfortunately.".format(rest)
+            else:
+                return "Oh no, I couldn't understand what you mean by \"{}\".".format(rest)
+
         if parsed == 1:
-            # date without time - assume morning
             date_time = datetime.datetime.combine(date_time.date(), datetime.time(hour=7, minute=0))
+
         if parsed == 2:
-            # time without date - assume next time that time comes up
-            if now > date_time:
-                date_time += datetime.timedelta(days=1)
-        reminder = {
-            'next': date_time,
-            'subject': subject,
-            'active': True,
-            'periodic': False,
-            'separator': separator_word,
-        }
-        table = db['reminders']
-        table.insert(reminder)
-        return "I set up your reminder for {}".format(
-            reminder['next'].strftime("%A, %B %-d %Y at %-H:%M")
-        )
+            # time without date - only makes sense if unit is day or hour:
+            if unit != 'day' and unit != 'hour':
+                return "Oh no, I couldn't understand what you mean by \"{}\". Note that you can only set" \
+                       "a time (without a weekday or date) if your reminder is every X days or hours".format(rest)
+    else:
+        if unit == 'min':
+            date_time = datetime.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour,
+                                          minute=now.minute)
+        elif unit == 'h':
+            date_time = datetime.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour)
+        elif unit == 'day' or unit == 'week':
+            date_time = datetime.datetime(year=now.year, month=now.month, day=now.day, hour=7)
+        elif unit == 'month':
+            date_time = datetime.datetime(year=now.year, month=now.month, day=1, hour=7)
+        elif unit == 'year':
+            date_time = datetime.datetime(year=now.year + 1, month=1, day=1, hour=7)
+
+    # phew.
+    reminder = {
+        'next': date_time,
+        'subject': subject,
+        'active': True,
+        'periodic': True,
+        'interval': interval,
+        'unit': unit,
+        'separator': separator_word,
+    }
+
+    if date_time < now:
+        advance_periodic_reminder(reminder)
+    return reminder
+
+
+def create_onetime_reminder(time_string, subject, separator_word):
+    now = datetime.datetime.now()
+    date_time, parsed = calendar.parseDT(time_string)
+    if parsed == 0:
+        return "Sorry, I don't understand what you mean by \"{}\".".format(time_string)
+    if parsed == 1:
+        # date without time - assume morning
+        date_time = datetime.datetime.combine(date_time.date(), datetime.time(hour=7, minute=0))
+    if parsed == 2:
+        # time without date - assume next time that time comes up
+        if now > date_time:
+            date_time += datetime.timedelta(days=1)
+    reminder = {
+        'next': date_time,
+        'subject': subject,
+        'active': True,
+        'periodic': False,
+        'separator': separator_word,
+    }
+    return reminder
 
 
 def advance_periodic_reminder(reminder):
