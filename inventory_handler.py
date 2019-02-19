@@ -71,7 +71,7 @@ def handle_search(match, db):
 
     if thing:
         button_data = {
-            'text': "No it's not",
+            'text': "No {} not".format("they're" if thing['plural'] else "it's"),
             'data': thing['id'],
         }
         msg = "The {} {} {} the {}.".format(thing['name'],
