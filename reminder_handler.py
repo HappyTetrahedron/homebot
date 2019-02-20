@@ -276,7 +276,7 @@ def schedule_pending():
     table = db['reminders']
     send = params['sendmsg']
     if debug:
-        print("Scheduling reminders...")
+        print("Querying reminders...")
 
     now = datetime.datetime.now()
     reminders = db.query('SELECT * FROM reminders WHERE active IS TRUE AND next < :now', now=now)
@@ -284,6 +284,8 @@ def schedule_pending():
     count = 0
     for reminder in reminders:
         count += 1
+        if debug:
+            print("Sending reminder {}".format(count))
         # this is so stupid I can't even
         # dataset returns dates as string but only accepts them as datetime
         reminder['next'] = datetime.datetime.strptime(reminder['next'], '%Y-%m-%d %H:%M:%S.%f')
@@ -312,7 +314,12 @@ def schedule_pending():
             'message': msg,
             'buttons': buttons,
         }, key=key)
+
+        if debug:
+            print("Updating reminder {}".format(count))
         table.update(reminder, ['id'])
+        if debug:
+            print("Finished reminder {}".format(count))
     if debug:
         print("Sent out {} reminders".format(count))
 
