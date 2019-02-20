@@ -132,6 +132,8 @@ class PollBot:
         self.config = config
         if 'debug' not in config:
             config['debug'] = False
+        if config['debug']:
+            logger.info("Debug mode is ON")
 
         for handler in HANDLERS.values():
             handler.setup(self.config, self.send_message)
