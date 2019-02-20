@@ -29,7 +29,9 @@ UNITS = [
 REMOVE_BUTTONS = 'rb'
 REMOVE_REMINDER = 'rm'
 REMOVE_PERIODIC_REMINDER = 'rmp'
-SNOOZE_REMINDER = 'sn'
+SNOOZE_REMINDER_HOUR = 'snh'
+SNOOZE_REMINDER_DAY = 'sn'
+SNOOZE_REMINDER_WEEK = 'snw'
 
 
 def setup(config, send_message):
@@ -110,12 +112,21 @@ def handle_button(data, db):
             'answer': "Reminder deleted",
             'message': "{}\n\nThis periodic reminder was deleted.".format(reminder_to_string(reminder)),
         }
-    if method == SNOOZE_REMINDER:
-        reminder['next'] = reminder['next'] + datetime.timedelta(minutes=1)
+    if method in [SNOOZE_REMINDER_HOUR, SNOOZE_REMINDER_DAY, SNOOZE_REMINDER_WEEK]:
+        amount = ""
+        if method == SNOOZE_REMINDER_HOUR:
+            reminder['next'] = reminder['next'] + datetime.timedelta(hours=1)
+            amount = "1 hour"
+        if method == SNOOZE_REMINDER_DAY:
+            reminder['next'] = reminder['next'] + datetime.timedelta(days=1)
+            amount = "1 day"
+        if method == SNOOZE_REMINDER_WEEK:
+            reminder['next'] = reminder['next'] + datetime.timedelta(days=7)
+            amount = "1 week"
         reminder['active'] = True
         table.update(reminder, ['id'])
         answer = {
-            'answer': "Reminder snoozed",
+            'answer': "Reminder snoozed for {}".format(amount),
             'message': "{}\n\nThis reminder was snoozed.".format(reminder_to_string(reminder))
         }
     return answer
@@ -307,10 +318,20 @@ def schedule_pending():
                     'text': 'Got it!',
                     'data': '{}:{}'.format(reminder['id'], REMOVE_BUTTONS),
                 }],
-                [{
-                    'text': "Remind me again tomorrow",
-                    'data': '{}:{}'.format(reminder['id'], SNOOZE_REMINDER),
-                }]
+                [
+                    {
+                        'text': "+1h",
+                        'data': '{}:{}'.format(reminder['id'], SNOOZE_REMINDER_HOUR),
+                    },
+                    {
+                        'text': "+1d",
+                        'data': '{}:{}'.format(reminder['id'], SNOOZE_REMINDER_DAY),
+                    },
+                    {
+                        'text': "+1w",
+                        'data': '{}:{}'.format(reminder['id'], SNOOZE_REMINDER_WEEK),
+                    },
+                ]
             ]
         send({
             'message': msg,
