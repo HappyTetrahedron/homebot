@@ -275,6 +275,9 @@ def schedule_pending():
     db = params['db']
     table = db['reminders']
     send = params['sendmsg']
+    if debug:
+        print("Scheduling reminders...")
+
     now = datetime.datetime.now()
     reminders = db.query('SELECT * FROM reminders WHERE active IS TRUE AND next < :now', now=now)
 
@@ -310,7 +313,8 @@ def schedule_pending():
             'buttons': buttons,
         }, key=key)
         table.update(reminder, ['id'])
-    print("Sent out {} reminders".format(count))
+    if debug:
+        print("Sent out {} reminders".format(count))
 
 
 def run():
