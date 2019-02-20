@@ -130,6 +130,8 @@ class PollBot:
 
         self.db = dataset.connect('sqlite:///{}'.format(config['db']))
         self.config = config
+        if 'debug' not in config:
+            config['debug'] = False
 
         for handler in HANDLERS.values():
             handler.setup(self.config, self.send_message)

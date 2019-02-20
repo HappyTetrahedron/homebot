@@ -32,6 +32,7 @@ SNOOZE_REMINDER = 'sn'
 
 def setup(config, send_message):
     params['db'] = dataset.connect('sqlite:///{}'.format(config['db']))
+    params['debug'] = config['debug']
     params['sendmsg'] = send_message
     params['exit'] = threading.Event()
 
@@ -269,15 +270,17 @@ def reminder_to_string(reminder):
         reminder['subject'])
 
 
-
 def schedule_pending():
+    debug = params['debug']
     db = params['db']
     table = db['reminders']
     send = params['sendmsg']
     now = datetime.datetime.now()
     reminders = db.query('SELECT * FROM reminders WHERE active IS TRUE AND next < :now', now=now)
 
+    count = 0
     for reminder in reminders:
+        count += 1
         # this is so stupid I can't even
         # dataset returns dates as string but only accepts them as datetime
         reminder['next'] = datetime.datetime.strptime(reminder['next'], '%Y-%m-%d %H:%M:%S.%f')
@@ -307,6 +310,7 @@ def schedule_pending():
             'buttons': buttons,
         }, key=key)
         table.update(reminder, ['id'])
+    print("Sent out {} reminders".format(count))
 
 
 def run():
