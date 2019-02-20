@@ -348,9 +348,17 @@ def schedule_pending():
 
 
 def run():
-    while not params['exit'].is_set():
-        schedule_pending()
-        params['exit'].wait(60)
+    try:
+        while not params['exit'].is_set():
+            schedule_pending()
+            params['exit'].wait(60)
+        if params['debug']:
+            logger.info("Scheduler thread has exited")
+            logger.info("Exit signal is {}".format(params['exit'].is_set()))
+    except Exception as e:
+        logger.error("Exception on scheduler thread")
+        logger.exception(e)
+        raise e
 
 
 
