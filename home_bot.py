@@ -105,6 +105,11 @@ class PollBot:
                     chat_id=query.message.chat.id,
                     message_id=query.message.message_id
                 )
+            if 'delete' in answer and answer['delete']:
+                bot.delete_message(
+                    chat_id=query.message.chat.id,
+                    message_id=query.message.message_id
+                )
             query.answer(answer['answer'])
         else:
             query.answer(answer)

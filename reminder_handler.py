@@ -32,6 +32,7 @@ REMOVE_PERIODIC_REMINDER = 'rmp'
 SNOOZE_REMINDER_HOUR = 'snh'
 SNOOZE_REMINDER_DAY = 'sn'
 SNOOZE_REMINDER_WEEK = 'snw'
+DELETE_MESSAGE = 'dm'
 
 
 def setup(config, send_message):
@@ -80,10 +81,16 @@ def handle(message, db):
         'message': msg.format(
             reminder['next'].strftime("%A, %B %-d %Y at %-H:%M")
         ),
-        'buttons': [[{
-            'text': "Remove this reminder",
-            'data': "{}:{}".format(reminder_id, REMOVE_REMINDER)
-        }]],
+        'buttons': [[
+            {
+                'text': "Thanks!",
+                'data': "0:{}".format(DELETE_MESSAGE)
+            },
+            {
+                'text': "No wait",
+                'data': "{}:{}".format(reminder_id, REMOVE_REMINDER)
+            },
+        ]],
     }
 
 
@@ -99,12 +106,17 @@ def handle_button(data, db):
         table.delete(id=reminder_id)
         answer = {
             'answer': "Reminder deleted",
-            'message': "This reminder was deleted.",
+            'delete': True,
         }
     if method == REMOVE_BUTTONS:
         answer = {
             'answer': get_affirmation(),
             'message': reminder_to_string(reminder),
+        }
+    if method == DELETE_MESSAGE:
+        answer = {
+            'answer': "You will be reminded.",
+            'delete': True
         }
     if method == REMOVE_PERIODIC_REMINDER:
         table.delete(id=reminder_id)
@@ -127,7 +139,7 @@ def handle_button(data, db):
         table.update(reminder, ['id'])
         answer = {
             'answer': "Reminder snoozed for {}".format(amount),
-            'message': "{}\n\nThis reminder was snoozed.".format(reminder_to_string(reminder))
+            'delete': True,
         }
     return answer
 
@@ -352,9 +364,8 @@ def run():
         while not params['exit'].is_set():
             schedule_pending()
             params['exit'].wait(60)
-        if params['debug']:
-            logger.info("Scheduler thread has exited")
-            logger.info("Exit signal is {}".format(params['exit'].is_set()))
+        logger.info("Scheduler thread has exited")
+        logger.info("Exit signal is {}".format(params['exit'].is_set()))
     except Exception as e:
         logger.error("Exception on scheduler thread")
         logger.exception(e)
