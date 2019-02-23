@@ -11,6 +11,7 @@ import dataset
 import inventory_handler
 import reminder_handler
 import hue_handler
+import grocery_handler
 
 from utils import get_affirmation
 
@@ -24,6 +25,7 @@ HANDLERS = {
     inventory_handler.key: inventory_handler,
     reminder_handler.key: reminder_handler,
     hue_handler.key: hue_handler,
+    grocery_handler.key: grocery_handler,
 }
 
 

@@ -9,6 +9,10 @@ def teardown():
     pass
 
 
+def matches_message(message):
+    return False
+
+
 def handle(message, db):
     pass
 
