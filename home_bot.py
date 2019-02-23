@@ -10,8 +10,10 @@ import dataset
 
 import inventory_handler
 import reminder_handler
+import hue_handler
 
 from utils import get_affirmation
+
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -21,6 +23,7 @@ logger = logging.getLogger(__name__)
 HANDLERS = {
     inventory_handler.key: inventory_handler,
     reminder_handler.key: reminder_handler,
+    hue_handler.key: hue_handler,
 }
 
 
