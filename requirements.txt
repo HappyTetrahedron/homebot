@@ -4,4 +4,4 @@ flask
 pyyaml
 dataset
 parsedatetime
-xdg
+pyxdg
