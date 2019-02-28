@@ -15,7 +15,7 @@ TURN_X_ON_PATTERN = re.compile("^(?:turn)?\s*(?:lights?\s+in)?\s*(?:the\s+)?(.+?
 IS_X_ON_PATTERN = re.compile("^(is|are)(?:\s+the)?\s+(.+)\s+(on|off)\??\s*$",
                              flags=re.I)
 
-SET_X_TO_PATTERN = re.compile("^set\s+(.+)\s+to\s+(.+)\.?$",
+SET_X_TO_PATTERN = re.compile("^set\s+(?:the\s+)?(.+)\s+to\s+(.+)\.?$",
                               flags=re.I)
 
 COLORS = {
@@ -157,7 +157,7 @@ def activate(scene):
 
 def is_on(match):
     groups = match.groups()
-    plural = groups[0]
+    plural = groups[0].lower()
     room = groups[1]
     on = groups[2] == 'on'
     group = get_group_from_room(room)
