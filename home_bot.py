@@ -14,7 +14,7 @@ import hue_handler
 import grocery_handler
 import weather_handler
 
-from utils import get_affirmation
+from utils import get_affirmation, get_generic_response
 
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -83,7 +83,7 @@ class PollBot:
                 self.send_message(reply, handler.key)
                 return
 
-        update.message.reply_text(get_affirmation())
+        update.message.reply_text(get_generic_response())
 
     def handle_inline_button(self, bot, update):
         query = update.callback_query
