@@ -31,10 +31,12 @@ class Hue:
 
     def put_request(self, uri, keys):
         jdata = json.dumps(keys)
-        r = requests.put("http://" + self.cfg['bridge_ip'] + "/api/" + self.cfg['api_key'] + "/" + uri, jdata)
+        r = requests.put("http://" + self.cfg['bridge_ip'] + "/api/" + self.cfg['api_key'] + "/" + uri, jdata,
+                         timeout=self.cfg.get('timeout'))
 
     def get_request(self, uri):
-        r = requests.get("http://" + self.cfg['bridge_ip'] + "/api/" + self.cfg['api_key'] + "/" + uri)
+        r = requests.get("http://" + self.cfg['bridge_ip'] + "/api/" + self.cfg['api_key'] + "/" + uri,
+                         timeout=self.cfg.get('timeout'))
         return json.loads(r.text)
 
     def _fetch_scenes_to_config(self):

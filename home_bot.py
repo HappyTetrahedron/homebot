@@ -145,13 +145,14 @@ class PollBot:
         if config['debug']:
             logger.info("Debug mode is ON")
 
-        for handler in HANDLERS.values():
-            handler.setup(self.config, self.send_message)
-
         """Start the bot."""
         # Create the EventHandler and pass it your bot's token.
         updater = Updater(config['token'])
         self.bot = updater.bot
+
+        """Set up handlers"""
+        for handler in HANDLERS.values():
+            handler.setup(self.config, self.send_message)
 
         # Get the dispatcher to register handlers
         dp = updater.dispatcher

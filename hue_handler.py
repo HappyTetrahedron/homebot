@@ -2,6 +2,8 @@ from base_handler import *
 
 import re
 import hue
+import requests
+from utils import get_affirmation
 
 key = "hue"
 
@@ -17,6 +19,12 @@ IS_X_ON_PATTERN = re.compile("^(is|are)(?:\s+the)?\s+(.+)\s+(on|off)\??\s*$",
 
 SET_X_TO_PATTERN = re.compile("^set\s+(?:the\s+)?(.+)\s+to\s+(.+)\.?$",
                               flags=re.I)
+
+TURN_ON = "on"
+TURN_OFF = "off"
+TRY_AGAIN = "try"
+
+TIMEOUT_MESSAGE = "Oh, looks like I can't reach your Hue bridge :("
 
 COLORS = {
     'red': '#FF0000',
@@ -95,26 +103,42 @@ def matches_message(message):
 
 
 def handle(message, _):
-    match = IS_X_ON_PATTERN.match(message)
-    if match:
-        return is_on(match)
-    match = TURN_ON_X_PATTERN.match(message)
-    if match:
-        groups = match.groups()
-        return turn_onoff(groups[1], groups[0])
-    match = TURN_X_ON_PATTERN.match(message)
-    if match:
-        groups = match.groups()
-        return turn_onoff(groups[0], groups[1])
-    match = SET_X_TO_PATTERN.match(message)
-    if match:
-        return set_to(match)
-    if message.lower().startswith("activate "):
-        return activate(message[9:])
+    try:
+        match = IS_X_ON_PATTERN.match(message)
+        if match:
+            return is_on(match)
+        match = TURN_ON_X_PATTERN.match(message)
+        if match:
+            groups = match.groups()
+            return turn_onoff(groups[1], groups[0])
+        match = TURN_X_ON_PATTERN.match(message)
+        if match:
+            groups = match.groups()
+            return turn_onoff(groups[0], groups[1])
+        match = SET_X_TO_PATTERN.match(message)
+        if match:
+            return set_to(match)
+        if message.lower().startswith("activate "):
+            return activate(message[9:])
+    except requests.exceptions.ConnectTimeout:
+        return {
+            'message': TIMEOUT_MESSAGE,
+            'buttons': [[{
+                'text': "Try again!",
+                'data': "{}:{}".format(TRY_AGAIN, message)
+        }]],
+        }
 
 
 def handle_button(data, _):
-    parts = data.split(':')
+    parts = data.split(':', 2)
+    cmd = parts[0]
+    if cmd == TRY_AGAIN:
+        msg = handle(parts[1], None)
+        if msg['message'] == TIMEOUT_MESSAGE:
+            return "It still doesn't work"
+        msg['answer'] = get_affirmation()
+        return msg
     msg = turn_onoff(parts[1], parts[0])
     return {
         'answer': msg,
@@ -172,7 +196,7 @@ def is_on(match):
         'message': msg,
         'buttons': [[{
             'text': button_text,
-            'data': "{}:{}".format('off' if ison else 'on', room.lower())
+            'data': "{}:{}".format(TURN_OFF if ison else TURN_ON, room.lower())
         }]]
     }
 

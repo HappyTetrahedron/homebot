@@ -126,15 +126,17 @@ def handle_button(data, db):
         }
     if method in [SNOOZE_REMINDER_HOUR, SNOOZE_REMINDER_DAY, SNOOZE_REMINDER_WEEK]:
         amount = ""
-        if method == SNOOZE_REMINDER_HOUR:
-            reminder['next'] = reminder['next'] + datetime.timedelta(hours=1)
-            amount = "1 hour"
-        if method == SNOOZE_REMINDER_DAY:
-            reminder['next'] = reminder['next'] + datetime.timedelta(days=1)
-            amount = "1 day"
-        if method == SNOOZE_REMINDER_WEEK:
-            reminder['next'] = reminder['next'] + datetime.timedelta(days=7)
-            amount = "1 week"
+        now = datetime.datetime.now()
+        while reminder['next'] < now:
+            if method == SNOOZE_REMINDER_HOUR:
+                reminder['next'] = reminder['next'] + datetime.timedelta(hours=1)
+                amount = "1 hour"
+            if method == SNOOZE_REMINDER_DAY:
+                reminder['next'] = reminder['next'] + datetime.timedelta(days=1)
+                amount = "1 day"
+            if method == SNOOZE_REMINDER_WEEK:
+                reminder['next'] = reminder['next'] + datetime.timedelta(days=7)
+                amount = "1 week"
         reminder['active'] = True
         table.update(reminder, ['id'])
         answer = {
