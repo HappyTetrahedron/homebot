@@ -12,6 +12,7 @@ import inventory_handler
 import reminder_handler
 import hue_handler
 import grocery_handler
+import weather_handler
 
 from utils import get_affirmation
 
@@ -26,6 +27,7 @@ HANDLERS = {
     reminder_handler.key: reminder_handler,
     hue_handler.key: hue_handler,
     grocery_handler.key: grocery_handler,
+    weather_handler.key: weather_handler,
 }
 
 
@@ -57,9 +59,15 @@ class PollBot:
                 if not key:
                     raise ValueError("Using inline buttons requires you to pass a key")
                 buttons = self.assemble_inline_buttons(message['buttons'], key)
-            self.bot.send_message(self.config['owner_id'],
-                                  message['message'],
-                                  reply_markup=buttons)
+            if 'photo' in message:
+                self.bot.send_photo(self.config['owner_id'],
+                                    open(message['photo'], 'rb'),
+                                    caption=message.get('message'),
+                                    reply_markup=buttons)
+            else:
+                self.bot.send_message(self.config['owner_id'],
+                                      message['message'],
+                                      reply_markup=buttons)
         else:
             self.bot.send_message(self.config['owner_id'], message)
 
@@ -72,13 +80,7 @@ class PollBot:
         for key, handler in HANDLERS.items():
             if handler.matches_message(update.message.text):
                 reply = handler.handle(update.message.text, self.db)
-                if not isinstance(reply, dict):
-                    update.message.reply_text(reply)
-                else:
-                    buttons = None
-                    if 'buttons' in reply:
-                        buttons = self.assemble_inline_buttons(reply['buttons'], key)
-                    update.message.reply_text(reply['message'], reply_markup=buttons)
+                self.send_message(reply, handler.key)
                 return
 
         update.message.reply_text(get_affirmation())
