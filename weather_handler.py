@@ -1,3 +1,5 @@
+import datetime
+
 from base_handler import *
 import logging
 
@@ -38,10 +40,26 @@ def handle(message, db):
 
     weather_data = json.loads(requests.get(json_url, timeout=7).text)
 
-    plot = weather_plotter.generate_plot(weather_data)
+    if "tomorrow" in message:
+        tomorrow = datetime.datetime.now() + datetime.timedelta(days=1)
+        tomorrow_morning = datetime.datetime(year=tomorrow.year,
+                                             month=tomorrow.month,
+                                             day=tomorrow.day,
+                                             hour=5)
+        starttime = tomorrow_morning.timestamp()
+        plot, start, end = weather_plotter.generate_plot(weather_data, starttime)
+
+    else:
+        plot, start, end = weather_plotter.generate_plot(weather_data)
+
+    start_time = datetime.datetime.fromtimestamp(start)
+    end_time = datetime.datetime.fromtimestamp(end)
 
     return {
-        'message': "Weather.",
+        'message': "Weather from {} to {}".format(
+            start_time.strftime("%A, %B %-d at %-H:%M"),
+            end_time.strftime("%A, %B %-d at %-H:%M")
+        ),
         'photo': plot,
     }
 

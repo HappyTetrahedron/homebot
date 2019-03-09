@@ -85,13 +85,13 @@ def format_time(time, pos=None):
     return dt.datetime.fromtimestamp(time).strftime('%H:%M')
 
 
-def generate_plot(weather_data):
+def generate_plot(weather_data, starttime=None):
     j = weather_data
 
-    # Extract the temperatures, precipitations and timestamps for the first two days in the json file.
-    temps = [ row[1]           for k in [0, 1] for row in j[k].get("temperature") ]
-    precs = [ row[1]           for k in [0, 1] for row in j[k].get("rainfall")    ]
-    times = [ int(row[0]/1000) for k in [0, 1] for row in j[k].get("temperature") ]
+    # Extract the temperatures, precipitations and timestamps for the first few days in the json file.
+    temps = [ row[1]           for k in [0, 1, 2] for row in j[k].get("temperature") ]
+    precs = [ row[1]           for k in [0, 1, 2] for row in j[k].get("rainfall")    ]
+    times = [ int(row[0]/1000) for k in [0, 1, 2] for row in j[k].get("temperature") ]
 
     # Extract icon information
     icons = [ {"time":row.get("timestamp")/1000, "icon":weathericons[row.get("weather_symbol_id")]} for k in [0,1] for row in j[k].get("symbols") ]
@@ -100,8 +100,9 @@ def generate_plot(weather_data):
     now = j[0].get("current_time") / 1000
 
     # timespan to display
-    starttime = now - 3600
-    endtime = now + 24 * 3600
+    if not starttime:
+        starttime = now - 3600
+    endtime = starttime + 25 * 3600
 
     # filter the temps, precs and times array such that only values within the timespan are included
     indices = [starttime < x < endtime for x in times]
@@ -143,7 +144,9 @@ def generate_plot(weather_data):
     ax2.spines['top'].set_visible(False)  # remove top border
     ax2.plot(times, temps, 'w',  linewidth=3)
     ax2.set_ylim([mintemp - 2, maxtemp + 2])  # y axis range
-    ax2.vlines(now, mintemp - 2, maxtemp + 1, colors='w', linestyles='dotted')  # verticl line where the current time is
+
+    if starttime < now < endtime:
+        ax2.vlines(now, mintemp - 2, maxtemp + 1, colors='w', linestyles='dotted')  # verticl line where the current time is
 
     # set temperature y tick labels to white
     for tl in ax2.get_yticklabels():
@@ -151,4 +154,4 @@ def generate_plot(weather_data):
 
     # save figure to file
     fig.savefig('/tmp/weather.png', facecolor='k', edgecolor='none', transparent=True, bbox_inches='tight', dpi=100)
-    return '/tmp/weather.png'
+    return '/tmp/weather.png', starttime, endtime
