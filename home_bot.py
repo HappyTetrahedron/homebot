@@ -13,6 +13,7 @@ import reminder_handler
 import hue_handler
 import grocery_handler
 import weather_handler
+import trains_handler
 
 from utils import get_affirmation, get_generic_response
 
@@ -28,6 +29,7 @@ HANDLERS = {
     hue_handler.key: hue_handler,
     grocery_handler.key: grocery_handler,
     weather_handler.key: weather_handler,
+    trains_handler.key: trains_handler,
 }
 
 
@@ -63,11 +65,13 @@ class PollBot:
                 self.bot.send_photo(self.config['owner_id'],
                                     open(message['photo'], 'rb'),
                                     caption=message.get('message'),
-                                    reply_markup=buttons)
+                                    reply_markup=buttons,
+                                    parse_mode=message.get('parse_mode'))
             else:
                 self.bot.send_message(self.config['owner_id'],
                                       message['message'],
-                                      reply_markup=buttons)
+                                      reply_markup=buttons,
+                                      parse_mode=message.get('parse_mode'))
         else:
             self.bot.send_message(self.config['owner_id'], message)
 
