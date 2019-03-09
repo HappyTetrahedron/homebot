@@ -25,6 +25,7 @@ METEO_PAGE_URL = "https://www.meteoswiss.admin.ch/home.html?tab=overview"
 METEO_FORECAST_URL = "https://www.meteoswiss.admin.ch/product/output/forecast-chart/version__{}/en/{}.json"
 METEO_SEARCH_URL = "https://www.meteoswiss.admin.ch/etc/designs/meteoswiss/ajax/search/{}.json"
 
+REFRESH = "ref"
 
 def setup(config, send_message):
     params['config'] = config['weather']
@@ -35,13 +36,6 @@ def matches_message(message):
 
 
 def handle(message, db):
-    result = requests.get(METEO_PAGE_URL, timeout=7)
-    match = VERSION_TIMESTAMP_REGEX.search(result.text)
-    if not match:
-        return "There appears to be an issue with the Meteo page parsing"
-
-    version_timestamp = match.groups()[0]
-
     zip = params['config']['zip']
     city_name = params['config']['city']
 
@@ -102,13 +96,34 @@ def handle(message, db):
                 zip = best_match['zip']
                 city_name = "{} {}".format(best_match['name'], best_match['canton'])
 
-    json_url = METEO_FORECAST_URL.format(version_timestamp, zip)
+    return get_weather_data(zip, city_name, "tomorrow" in message)
 
-    logger.info(json_url)
+
+def handle_button(data, db):
+    parts = data.split(":", 1)
+    cmd = parts[0]
+    parts = parts[1].split(":")
+
+    if cmd == REFRESH:
+        msg = get_weather_data(parts[0], parts[1], parts[2].lower() == "true")
+        msg['answer'] = "Refreshed!"
+        return msg
+    return "Oh, something went wrong."
+
+
+def get_weather_data(zip, city_name, for_tomorrow):
+    result = requests.get(METEO_PAGE_URL, timeout=7)
+    match = VERSION_TIMESTAMP_REGEX.search(result.text)
+    if not match:
+        return "There appears to be an issue with the Meteo page parsing"
+
+    version_timestamp = match.groups()[0]
+
+    json_url = METEO_FORECAST_URL.format(version_timestamp, zip)
 
     weather_data = json.loads(requests.get(json_url, timeout=7).text)
 
-    if "tomorrow" in message:
+    if for_tomorrow:
         tomorrow = datetime.datetime.now() + datetime.timedelta(days=1)
         tomorrow_morning = datetime.datetime(year=tomorrow.year,
                                              month=tomorrow.month,
@@ -130,6 +145,10 @@ def handle(message, db):
             end_time.strftime("%A, %B %-d at %-H:%M")
         ),
         'photo': plot,
+        'buttons': [[{
+            'text': "Refresh",
+            'data': "{}:{}:{}:{}:{}".format(REFRESH, zip, city_name, for_tomorrow, datetime.datetime.now().timestamp())
+        }]]
     }
 
 

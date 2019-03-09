@@ -3,7 +3,7 @@
 import yaml
 import logging
 
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackQueryHandler
 import webserver
 import dataset
@@ -110,13 +110,25 @@ class PollBot:
                 buttons = None
                 if 'buttons' in answer:
                     buttons = self.assemble_inline_buttons(answer['buttons'], key)
-                bot.edit_message_text(
-                    text=answer['message'],
-                    reply_markup=buttons,
-                    chat_id=query.message.chat.id,
-                    message_id=query.message.message_id,
-                    parse_mode=answer.get('parse_mode')
-                )
+                if 'photo' in answer:
+                    bot.edit_message_media(
+                        chat_id=query.message.chat.id,
+                        message_id=query.message.message_id,
+                        reply_markup=buttons,
+                        media=InputMediaPhoto(
+                            open(answer['photo'], 'rb'),
+                            caption=answer.get('message'),
+                            parse_mode=answer.get('parse_mode')
+                        )
+                    )
+                else:
+                    bot.edit_message_text(
+                        text=answer['message'],
+                        reply_markup=buttons,
+                        chat_id=query.message.chat.id,
+                        message_id=query.message.message_id,
+                        parse_mode=answer.get('parse_mode')
+                    )
             if 'delete' in answer and answer['delete']:
                 bot.delete_message(
                     chat_id=query.message.chat.id,
