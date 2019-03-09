@@ -125,12 +125,17 @@ def find_connection(from_query, to_query):
             for section in connection['sections']:
                 if section['journey']:
                     msg += "{} {} {}{}  *{}* {} ─ {} {}\n".format(
-                        EMOJI[section['journey']['category']] if section['journey']['category'] in EMOJI else DEFAULT_EMOJI,
+                        EMOJI[section['journey']['category']]
+                        if section['journey']['category'] in EMOJI
+                        else DEFAULT_EMOJI,
                         datetime.datetime.fromtimestamp(section['departure']['departureTimestamp']).strftime("%-H:%M"),
-                        "" if section['journey']['number'].startswith(section['journey']['category']) else section['journey']['category'],
+                        "" if section['journey']['number'].startswith(section['journey']['category'])
+                        else section['journey']['category'],
                         section['journey']['number'],
                         section['departure']['station']['name'],
-                        " Gleis {} ".format(section['departure']['platform']) if section['departure']['platform'] else "",
+                        " Gleis {} ".format(section['departure']['platform'])
+                        if section['departure']['platform']
+                        else "",
                         section['arrival']['station']['name'],
                         datetime.datetime.fromtimestamp(section['arrival']['arrivalTimestamp']).strftime("%-H:%M"),
                     )
@@ -138,7 +143,9 @@ def find_connection(from_query, to_query):
                     msg += "{} walk to *{}* {}\n".format(
                         WALK_EMOJI,
                         section['arrival']['station']['name'],
-                        "({})".format(format_duration_seconds(section['walk']['duration'])) if section['walk']['duration'] else ""
+                        "({})".format(format_duration_seconds(section['walk']['duration']))
+                        if section['walk']['duration']
+                        else ""
                     )
             msg += "\n"
 
@@ -213,7 +220,8 @@ def stationboard_message(stations, types=None):
         'message': message,
         'buttons': [[{
             'text': "Refresh",
-            'data': "{}:{}:{}:{}".format(REFRESH_STATIONBOARD, stations_str, types_str, datetime.datetime.now().timestamp())
+            'data': "{}:{}:{}:{}".format(REFRESH_STATIONBOARD, stations_str, types_str,
+                                         datetime.datetime.now().timestamp())
         }]]
     }
 
