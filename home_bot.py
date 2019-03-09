@@ -114,7 +114,8 @@ class PollBot:
                     text=answer['message'],
                     reply_markup=buttons,
                     chat_id=query.message.chat.id,
-                    message_id=query.message.message_id
+                    message_id=query.message.message_id,
+                    parse_mode=answer.get('parse_mode')
                 )
             if 'delete' in answer and answer['delete']:
                 bot.delete_message(

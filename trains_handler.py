@@ -25,14 +25,32 @@ CONNECTION_URL = "http://transport.opendata.ch/v1/connections"
 
 TRAM = "T"
 BUS = "BUS"
+NIEDERFLURBUS = "NFB"
 S_BAHN = "S"
 INTERREGIO = "IR"
 REGIOEXPRESS = "RE"
 INTERCITY = "IC"
+EUROCITY = "EC"
+
+EMOJI = {
+    S_BAHN: u"\U0001F688",
+    BUS: u"\U0001F68C",
+    NIEDERFLURBUS: u"\U0001F68C",
+    INTERREGIO: u"\U0001F683",
+    TRAM: u"\U0001F68B",
+    REGIOEXPRESS: u"\U0001F683",
+    INTERCITY: u"\U0001F684",
+    EUROCITY: u"\U0001F685"
+}
+
+DEFAULT_EMOJI = u"\U0001F682"
+
+WALK_EMOJI = u"\U0001F9B6\U0001F3FB"
 
 LIMIT = 5
 
-REFRESH = "ref"
+REFRESH_STATIONBOARD = "ref"
+REFRESH_CONNECTIONS = "rec"
 
 
 def setup(config, send_message):
@@ -47,7 +65,10 @@ def matches_message(message):
 def handle(message, db):
     matches = NEXT_FROM_TO_REGEX.match(message)
     if matches:
-        return find_connection(matches)
+        groups = matches.groups()
+        from_query = groups[1]
+        to_query = groups[2]
+        return find_connection(from_query, to_query)
 
     matches = NEXT_FROM_REGEX.match(message)
     if matches:
@@ -64,26 +85,37 @@ def handle_button(data, db):
     cmd = parts[0]
     payload = parts[1]
 
-    if cmd == REFRESH:
+    if cmd == REFRESH_STATIONBOARD:
         more_parts = payload.split(':')
         stations = more_parts[0].split(',')
         types = more_parts[1].split(',') if more_parts[1] else None
         msg = stationboard_message(stations, types)
         msg['answer'] = "Refreshed!"
         return msg
+    if cmd == REFRESH_CONNECTIONS:
+        more_parts = payload.split(':')
+        from_station = more_parts[0]
+        to_station = more_parts[1]
+        msg = find_connection(from_station, to_station)
+        msg['answer'] = "Refreshed!"
+        return msg
+    return "Oh, looks like something went wrong..."
 
 
-def find_connection(matches):
-    groups = matches.groups()
-    from_query = groups[1]
-    to_query = groups[2]
+def find_connection(from_query, to_query):
     connections = json.loads(requests.get(CONNECTION_URL, params={'from': from_query, 'to': to_query}, timeout=7).text)
 
     next_minute = (datetime.datetime.now() + datetime.timedelta(minutes=1)).timestamp()
 
+    from_id = from_query
+    to_id = to_query
     msg = ""
     for connection in connections['connections']:
         if connection['from']['departureTimestamp'] > next_minute:
+            if 'id' in connection['from']:
+                from_id = connection['from']['id']
+            if 'id' in connection['to']:
+                to_id = connection['to']['id']
             msg += "{} to {} -- {} -- _in {}_\n".format(
                 connection['from']['station']['name'],
                 connection['to']['station']['name'],
@@ -92,9 +124,10 @@ def find_connection(matches):
             )
             for section in connection['sections']:
                 if section['journey']:
-                    msg += " {} {}{}  *{}* {}-- {} {}\n".format(
+                    msg += "{} {} {}{}  *{}* {} ─ {} {}\n".format(
+                        EMOJI[section['journey']['category']] if section['journey']['category'] in EMOJI else DEFAULT_EMOJI,
                         datetime.datetime.fromtimestamp(section['departure']['departureTimestamp']).strftime("%-H:%M"),
-                        section['journey']['category'],
+                        "" if section['journey']['number'].startswith(section['journey']['category']) else section['journey']['category'],
                         section['journey']['number'],
                         section['departure']['station']['name'],
                         " Gleis {} ".format(section['departure']['platform']) if section['departure']['platform'] else "",
@@ -102,15 +135,21 @@ def find_connection(matches):
                         datetime.datetime.fromtimestamp(section['arrival']['arrivalTimestamp']).strftime("%-H:%M"),
                     )
                 elif section['walk']:
-                    msg += " -- walk to *{}* {}\n".format(
+                    msg += "{} walk to *{}* {}\n".format(
+                        WALK_EMOJI,
                         section['arrival']['station']['name'],
-                        "({})".format(format_duration_seconds(section['walk']['duration']) if section['walk']['duration'] else "")
+                        "({})".format(format_duration_seconds(section['walk']['duration'])) if section['walk']['duration'] else ""
                     )
             msg += "\n"
 
     return {
         'message': msg,
-        'parse_mode': 'markdown'
+        'parse_mode': 'markdown',
+        'buttons': [[{
+            'text': "Refresh",
+            'data': "{}:{}:{}:{}".format(REFRESH_CONNECTIONS, from_id, to_id, next_minute)
+        }]]
+
     }
 
 
@@ -192,7 +231,8 @@ def stationboard_message(stations, types=None):
     for stationboard in stationboards:
         message += "Connections from {}:\n".format(stationboard['station']['name'])
         for connection in stationboard['stationboard']:
-            message += "{} {}   {}'\n".format(
+            message += "{} {} {}   {}'\n".format(
+                EMOJI[connection['category']] if connection['category'] in EMOJI else DEFAULT_EMOJI,
                 connection['number'],
                 connection['to'],
                 int((connection['stop']['departureTimestamp'] - now) // 60)
@@ -205,6 +245,6 @@ def stationboard_message(stations, types=None):
         'message': message,
         'buttons': [[{
             'text': "Refresh",
-            'data': "{}:{}:{}:{}".format(REFRESH, stations_str, types_str, datetime.datetime.now().timestamp())
+            'data': "{}:{}:{}:{}".format(REFRESH_STATIONBOARD, stations_str, types_str, datetime.datetime.now().timestamp())
         }]]
     }
