@@ -153,38 +153,6 @@ def find_connection(from_query, to_query):
     }
 
 
-def format_duration_seconds(duration):
-    duration = int(duration)
-    days = duration // 86400
-    duration = duration % 86400
-    hours = duration // 3600
-    duration = duration % 3600
-    mins = duration // 60
-    return format_duration(days, hours, mins)
-
-
-def format_duration_string(duration):
-    p = duration.split('d')
-    days = int(p[0])
-    rest = p[1]
-
-    p = rest.split(':')
-    hours = int(p[0])
-    mins = int(p[1])
-    return format_duration(days, hours, mins)
-
-
-def format_duration(days, hours, mins):
-    dur = ""
-    if days > 0:
-        dur += "{} day{} ".format(days, "s" if days > 1 else "")
-    if hours > 0:
-        dur += "{} h {} min".format(hours, mins)
-    else:
-        dur += "{}{}".format(mins, "'" if days == 0 else " min")
-    return dur
-
-
 def find_stationboards(matches):
     groups = matches.groups()
     types = keyword_to_type(groups[0])
@@ -248,3 +216,35 @@ def stationboard_message(stations, types=None):
             'data': "{}:{}:{}:{}".format(REFRESH_STATIONBOARD, stations_str, types_str, datetime.datetime.now().timestamp())
         }]]
     }
+
+
+def format_duration_seconds(duration):
+    duration = int(duration)
+    days = duration // 86400
+    duration = duration % 86400
+    hours = duration // 3600
+    duration = duration % 3600
+    mins = duration // 60
+    return format_duration(days, hours, mins)
+
+
+def format_duration_string(duration):
+    p = duration.split('d')
+    days = int(p[0])
+    rest = p[1]
+
+    p = rest.split(':')
+    hours = int(p[0])
+    mins = int(p[1])
+    return format_duration(days, hours, mins)
+
+
+def format_duration(days, hours, mins):
+    dur = ""
+    if days > 0:
+        dur += "{} day{} ".format(days, "s" if days > 1 else "")
+    if hours > 0:
+        dur += "{} h {} min".format(hours, mins)
+    else:
+        dur += "{}{}".format(mins, "'" if days == 0 else " min")
+    return dur
