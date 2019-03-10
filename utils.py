@@ -59,13 +59,14 @@ def fuzzy_match(query, items, name_getter, min_words=2, min_chars_first_word=3, 
                         if len(matches) >= min(min_words, len(name_words)):
                             # Heuristic. In total, at least X characters must match (if the product has that many).
                             if sum(matches) >= min(sum([len(w) for w in name_words]), min_chars_total):
-                                matches_found.append({
-                                    'len': len(matches),
-                                    'sum': sum(matches),
-                                    'part': part_index,
-                                    'word': q,
-                                    'item': item,
-                                })
+                                if not any([match['item'] == item for match in matches_found]):
+                                    matches_found.append({
+                                        'len': len(matches),
+                                        'sum': sum(matches),
+                                        'part': part_index,
+                                        'word': q,
+                                        'item': item,
+                                    })
 
     matches_found.sort(key=lambda m: (m['len'], m['sum']), reverse=True)
     return matches_found

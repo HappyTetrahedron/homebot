@@ -7,7 +7,7 @@ PLACE_PATTERN = re.compile('^\s*the\s+(.+?)\s+(is|are)\s+(.+?)\s+the\s+(.+?)\.?\
                            flags=re.I)
 SEARCH_PATTERN = re.compile('^\s*where\s+(is|are)\s+(?:all\s+)?the\s+(.+?)\??\s*$',
                             flags=re.I)
-LIST_PATTERN = re.compile('^\s*what\s+is\s+(.+?)\s+the\s+(.+?)\??\s*$',
+LIST_PATTERN = re.compile('^\s*what(?:\s+is|\'s)\s+(.+?)\s+the\s+(.+?)\??\s*$',
                           flags=re.I)
 
 key = 'inv'
@@ -54,10 +54,15 @@ def handle_list(match, db):
     location = groups[1]
 
     table = db['inventory']
-    things = table.find(location=location)
+    things = list(table.all())
+
+    matches = fuzzy_match(location, things, lambda thing: thing['location'],
+                          min_words=1, min_chars_first_word=3,
+                          min_chars_total=3)
 
     msg = ""
-    for thing in things:
+    for match in matches:
+        thing = match['item']
         msg += format_thing("The {} {} {} the {}.\n", thing)
 
     if not msg:
