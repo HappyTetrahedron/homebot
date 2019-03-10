@@ -1,10 +1,11 @@
 from base_handler import *
 import re
 import datetime
+from utils import fuzzy_match
 
 PLACE_PATTERN = re.compile('^\s*the\s+(.+?)\s+(is|are)\s+(.+?)\s+the\s+(.+?)\.?\s*$',
                            flags=re.I)
-SEARCH_PATTERN = re.compile('^\s*where\s+(is|are)\s+the\s+(.+?)\??\s*$',
+SEARCH_PATTERN = re.compile('^\s*where\s+(is|are)\s+(?:all\s+)?the\s+(.+?)\??\s*$',
                             flags=re.I)
 LIST_PATTERN = re.compile('^\s*what\s+is\s+(.+?)\s+the\s+(.+?)\??\s*$',
                           flags=re.I)
@@ -24,7 +25,7 @@ def handle(message, db):
         return handle_place(match, db)
     match = SEARCH_PATTERN.match(message.lower())
     if match:
-        return handle_search(match, db)
+        return handle_search(match, message, db)
     match = LIST_PATTERN.match(message.lower())
     if match:
         return handle_list(match, db)
@@ -64,27 +65,44 @@ def handle_list(match, db):
     return msg
 
 
-def handle_search(match, db):
+def handle_search(match, message, db):
     groups = match.groups()
     plural = groups[0]
     name = groups[1]
 
-    table = db['inventory']
-    thing = table.find_one(name=name)
+    is_all = message.split()[2] == 'all'
 
-    if thing:
-        button_data = {
-            'text': "No {} not".format("they're" if thing['plural'] else "it's"),
-            'data': thing['id'],
-        }
-        msg = "The {} {} {} the {}.".format(thing['name'],
-                                            'are' if thing['plural'] else 'is',
-                                            thing['position'],
-                                            thing['location'])
-        ret = {
-            'message': msg,
-            'buttons': [[button_data]]
-        }
+    table = db['inventory']
+    things = list(table.all())
+
+    matches = fuzzy_match(name, things, lambda thing: thing['name'],
+                          min_words=1, min_chars_first_word=3,
+                          min_chars_total=3)
+
+    if matches:
+        if is_all:
+            msg = ""
+            for match in matches:
+                thing = match['item']
+                msg += "The {} {} {} the {}.\n".format(thing['name'],
+                                                       'are' if thing['plural'] else 'is',
+                                                       thing['position'],
+                                                       thing['location'])
+                ret = msg
+        else:
+            thing = matches[0]['item']
+            button_data = {
+                'text': "No {} not".format("they're" if thing['plural'] else "it's"),
+                'data': thing['id'],
+            }
+            msg = "The {} {} {} the {}.".format(thing['name'],
+                                                'are' if thing['plural'] else 'is',
+                                                thing['position'],
+                                                thing['location'])
+            ret = {
+                'message': msg,
+                'buttons': [[button_data]]
+            }
         return ret
 
     else:
