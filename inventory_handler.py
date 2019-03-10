@@ -80,7 +80,7 @@ def handle_search(match, message, db):
                           min_chars_total=3)
 
     if matches:
-        if is_all:
+        if is_all and len(matches) > 1:
             msg = ""
             for match in matches:
                 thing = match['item']
