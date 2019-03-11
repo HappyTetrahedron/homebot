@@ -25,7 +25,7 @@ class Hue:
 
     def get_scene_info(self, scenename):
         for scene in self.cfg['scenes']:
-            if scene['scene'] == scenename:
+            if scene['scene'].lower() == scenename.lower():
                 return scene
         return {}
 
