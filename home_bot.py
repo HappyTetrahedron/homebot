@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import threading
+
 import yaml
 import logging
 
@@ -36,8 +38,10 @@ HANDLERS = {
 class PollBot:
     def __init__(self):
         self.db = None
+        self.periodic_db = None
         self.config = None
         self.bot = None
+        self.exit = threading.Event()
 
     @staticmethod
     def assemble_inline_buttons(button_data, prefix_key):
@@ -158,6 +162,7 @@ class PollBot:
             config = yaml.load(configfile)
 
         self.db = dataset.connect('sqlite:///{}'.format(config['db']))
+        self.periodic_db = dataset.connect('sqlite:///{}'.format(config['db']))
         self.config = config
         if 'debug' not in config:
             config['debug'] = False
@@ -172,6 +177,9 @@ class PollBot:
         """Set up handlers"""
         for handler in HANDLERS.values():
             handler.setup(self.config, self.send_message)
+
+        t = threading.Thread(target=self.scheduler_run)
+        t.start()
 
         # Get the dispatcher to register handlers
         dp = updater.dispatcher
@@ -193,8 +201,27 @@ class PollBot:
 
         updater.idle()
 
+        self.exit.set()
+
         for handler in HANDLERS.values():
             handler.teardown()
+
+    def scheduler_run(self):
+        while not self.exit.is_set():
+            for handler in HANDLERS.values():
+                try:
+                    handler.run_periodically(self.periodic_db)
+                except Exception as e:
+                    logger.error("Exception on scheduler thread with handler {}".format(handler.key))
+                    logger.exception(e)
+            try:
+                self.exit.wait(60)
+            except Exception as e:
+                logger.error("Exception on scheduler thread")
+                logger.exception(e)
+        logger.info("Scheduler thread has exited")
+        logger.info("Exit signal is {}".format(self.exit.is_set()))
+
 
 
 def main(opts):

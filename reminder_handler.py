@@ -1,9 +1,7 @@
 from base_handler import *
 import re
-import threading
 import parsedatetime
 import datetime
-import dataset
 import logging
 from utils import get_affirmation
 
@@ -36,17 +34,8 @@ DELETE_MESSAGE = 'dm'
 
 
 def setup(config, send_message):
-    params['db'] = dataset.connect('sqlite:///{}'.format(config['db']))
     params['debug'] = config['debug']
     params['sendmsg'] = send_message
-    params['exit'] = threading.Event()
-
-    t = threading.Thread(target=run)
-    t.start()
-
-
-def teardown():
-    params['exit'].set()
 
 
 def matches_message(message):
@@ -353,9 +342,8 @@ def reminder_to_string(reminder):
         reminder['subject'])
 
 
-def schedule_pending():
+def run_periodically(db):
     debug = params['debug']
-    db = params['db']
     table = db['reminders']
     send = params['sendmsg']
     if debug:
@@ -436,17 +424,4 @@ def schedule_pending():
             logger.info("Finished reminder {}".format(count))
     if debug:
         logger.info("Sent out {} reminders".format(count))
-
-
-def run():
-    while not params['exit'].is_set():
-        try:
-            schedule_pending()
-            params['exit'].wait(60)
-        except Exception as e:
-            logger.error("Exception on scheduler thread")
-            logger.exception(e)
-    logger.info("Scheduler thread has exited")
-    logger.info("Exit signal is {}".format(params['exit'].is_set()))
-
 

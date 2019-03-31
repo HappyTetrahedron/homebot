@@ -19,3 +19,7 @@ def handle(message, db):
 
 def handle_button(data, db):
     pass
+
+
+def run_periodically(db):
+    pass
