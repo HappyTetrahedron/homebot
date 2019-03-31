@@ -51,10 +51,15 @@ LIMIT = 5
 
 REFRESH_STATIONBOARD = "ref"
 REFRESH_CONNECTIONS = "rec"
+AUTO_REFRESH_STATIONBOARD = "arc"
+AUTO_REFRESH_CONNECTIONS = "ars"
+STOP_AUTO_REFRESH = "sar"
 
 
 def setup(config, send_message):
     params['config'] = config['trains']
+    params['sendmsg'] = send_message
+    params['debug'] = config['debug']
 
 
 def matches_message(message):
@@ -62,7 +67,7 @@ def matches_message(message):
         or NEXT_FROM_REGEX.match(message) is not None
 
 
-def handle(message, db):
+def handle(message, _, x):
     matches = NEXT_FROM_TO_REGEX.match(message)
     if matches:
         groups = matches.groups()
@@ -80,10 +85,12 @@ def handle(message, db):
         return stationboard_message(params['config']['home_stations'], types or params['config']['home_types'])
 
 
-def handle_button(data, db):
+def handle_button(data, db, message_id):
     parts = data.split(':', 1)
     cmd = parts[0]
     payload = parts[1]
+
+    auto_refreshes = db['train_auto_refresh']
 
     if cmd == REFRESH_STATIONBOARD:
         more_parts = payload.split(':')
@@ -99,10 +106,47 @@ def handle_button(data, db):
         msg = find_connection(from_station, to_station)
         msg['answer'] = "Refreshed!"
         return msg
+    if cmd == AUTO_REFRESH_STATIONBOARD:
+        more_parts = payload.split(':')
+        stations = more_parts[0].split(',')
+        types = more_parts[1].split(',') if more_parts[1] else None
+        auto_refresh = {
+            'message': message_id,
+            'stations': ",".join(stations),
+            'types': ",".join(types),
+            'until': datetime.datetime.now() + datetime.timedelta(minutes=15),
+        }
+        auto_refreshes.insert(auto_refresh)
+        msg = stationboard_message(stations, types, stop_auto_refresh=True)
+        msg['answer'] = "Auto-refresh enabled!"
+        return msg
+    if cmd == AUTO_REFRESH_CONNECTIONS:
+        more_parts = payload.split(':')
+        from_station = more_parts[0]
+        to_station = more_parts[1]
+        auto_refresh = {
+            'message': message_id,
+            'from_station': from_station,
+            'to_station': to_station,
+            'until': datetime.datetime.now() + datetime.timedelta(minutes=15),
+        }
+        auto_refreshes.insert(auto_refresh)
+        msg = find_connection(from_station, to_station, stop_auto_refresh=True)
+        msg['answer'] = "Auto-refresh enabled!"
+        return msg
+    if cmd == STOP_AUTO_REFRESH:
+        auto_refresh = auto_refreshes.find_one(message=message_id)
+        if not auto_refresh:
+            return "Oh damn, this shouldn't happen!"
+        msg = get_auto_refresh_message(auto_refresh, False)
+        auto_refreshes.delete(id=auto_refresh['id'])
+        msg['answer'] = "Auto-refresh stopped!"
+        return msg
+
     return "Oh, looks like something went wrong..."
 
 
-def find_connection(from_query, to_query):
+def find_connection(from_query, to_query, stop_auto_refresh=False):
     connections = json.loads(requests.get(CONNECTION_URL, params={'from': from_query, 'to': to_query}, timeout=7).text)
 
     next_minute = (datetime.datetime.now() + datetime.timedelta(minutes=1)).timestamp()
@@ -155,6 +199,12 @@ def find_connection(from_query, to_query):
         'buttons': [[{
             'text': "Refresh",
             'data': "{}:{}:{}:{}".format(REFRESH_CONNECTIONS, from_id, to_id, next_minute)
+        }],
+        [{
+            'text': "Stop Auto-Refresh" if stop_auto_refresh else "Auto-Refresh",
+            'data': "{}:0".format(STOP_AUTO_REFRESH)
+            if stop_auto_refresh
+            else "{}:{}:{}:{}".format(AUTO_REFRESH_CONNECTIONS, from_id, to_id, next_minute)
         }]]
 
     }
@@ -186,7 +236,7 @@ def keyword_to_type(keyword):
     return None
 
 
-def stationboard_message(stations, types=None):
+def stationboard_message(stations, types=None, stop_auto_refresh=False):
     stationboards = []
 
     for station in stations:
@@ -222,8 +272,41 @@ def stationboard_message(stations, types=None):
             'text': "Refresh",
             'data': "{}:{}:{}:{}".format(REFRESH_STATIONBOARD, stations_str, types_str,
                                          datetime.datetime.now().timestamp())
+        }],
+        [{
+            'text': "Stop Auto-Refresh" if stop_auto_refresh else "Auto-Refresh",
+            'data': "{}:0".format(STOP_AUTO_REFRESH)
+            if stop_auto_refresh
+            else "{}:{}:{}:{}".format(AUTO_REFRESH_STATIONBOARD, stations_str, types_str,
+                                      datetime.datetime.now().timestamp())
         }]]
     }
+
+
+def run_periodically(db):
+    table = db['train_auto_refresh']
+    auto_refreshes = table.all()
+    for auto_refresh in auto_refreshes:
+        if params['debug']:
+            logger.info("Auto-Refreshing message {}".format(auto_refresh['message']))
+        continue_refreshing = auto_refresh['until'] > datetime.datetime.now()
+        msg = get_auto_refresh_message(auto_refresh, continue_refreshing)
+        if not continue_refreshing:
+            if params['debug']:
+                logger.info("Removing auto-refresh for message {}".format(auto_refresh['message']))
+            table.delete(id=auto_refresh['id'])
+        params['sendmsg'](msg, update_message_id=auto_refresh['message'], key=key)
+
+
+def get_auto_refresh_message(auto_refresh, continue_refreshing=True):
+    msg = {}
+    if 'from_station' in auto_refresh and auto_refresh['from_station'] is not None:
+        msg = find_connection(auto_refresh['from_station'], auto_refresh['to_station'],
+                              stop_auto_refresh=continue_refreshing)
+    elif 'stations' in auto_refresh and auto_refresh['stations'] is not None:
+        msg = stationboard_message(auto_refresh['stations'].split(','), auto_refresh['types'].split(','),
+                                   stop_auto_refresh=continue_refreshing)
+    return msg
 
 
 def format_duration_seconds(duration):

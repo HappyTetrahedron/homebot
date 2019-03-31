@@ -102,7 +102,7 @@ def matches_message(message):
            or message.lower().startswith("activate ")
 
 
-def handle(message, _):
+def handle(message, _, x):
     try:
         match = IS_X_ON_PATTERN.match(message)
         if match:
@@ -130,7 +130,7 @@ def handle(message, _):
         }
 
 
-def handle_button(data, _):
+def handle_button(data, _, x):
     parts = data.split(':', 2)
     cmd = parts[0]
     if cmd == TRY_AGAIN:

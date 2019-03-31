@@ -58,7 +58,7 @@ class PollBot:
             buttons.append(row)
         return InlineKeyboardMarkup(buttons)
 
-    def send_message(self, message, key=None):
+    def send_message(self, message, key=None, update_message_id=None):
         if isinstance(message, dict):
             buttons = None
             if 'buttons' in message:
@@ -66,18 +66,46 @@ class PollBot:
                     raise ValueError("Using inline buttons requires you to pass a key")
                 buttons = self.assemble_inline_buttons(message['buttons'], key)
             if 'photo' in message:
-                self.bot.send_photo(self.config['owner_id'],
-                                    open(message['photo'], 'rb'),
-                                    caption=message.get('message'),
-                                    reply_markup=buttons,
-                                    parse_mode=message.get('parse_mode'))
+                if update_message_id is not None:
+                    self.bot.edit_message_media(
+                        chat_id=self.config['owner_id'],
+                        message_id=update_message_id,
+                        reply_markup=buttons,
+                        media=InputMediaPhoto(
+                            open(message['photo'], 'rb'),
+                            caption=message.get('message'),
+                            parse_mode=message.get('parse_mode')
+                        )
+                    )
+                else:  # new photo
+                    self.bot.send_photo(self.config['owner_id'],
+                                        open(message['photo'], 'rb'),
+                                        caption=message.get('message'),
+                                        reply_markup=buttons,
+                                        parse_mode=message.get('parse_mode'))
             else:
-                self.bot.send_message(self.config['owner_id'],
-                                      message['message'],
-                                      reply_markup=buttons,
-                                      parse_mode=message.get('parse_mode'))
+                if update_message_id is not None:
+                    self.bot.edit_message_text(
+                        text=message['message'],
+                        reply_markup=buttons,
+                        chat_id=self.config['owner_id'],
+                        message_id=update_message_id,
+                        parse_mode=message.get('parse_mode')
+                    )
+                else:
+                    self.bot.send_message(self.config['owner_id'],
+                                          message['message'],
+                                          reply_markup=buttons,
+                                          parse_mode=message.get('parse_mode'))
         else:
-            self.bot.send_message(self.config['owner_id'], message)
+            if update_message_id is not None:
+                self.bot.edit_message_text(
+                    text=message,
+                    chat_id=self.config['owner_id'],
+                    message_id=update_message_id
+                )
+            else:
+                self.bot.send_message(self.config['owner_id'], message)
 
     def handle_message(self, bot, update):
         if str(update.message.from_user.id) != str(self.config['owner_id']):
@@ -87,7 +115,7 @@ class PollBot:
             return
         for key, handler in HANDLERS.items():
             if handler.matches_message(update.message.text):
-                reply = handler.handle(update.message.text, self.db)
+                reply = handler.handle(update.message.text, self.db, update.message.message_id)
                 self.send_message(reply, handler.key)
                 return
 
@@ -108,7 +136,7 @@ class PollBot:
             query.answer("Something's wrong with this button.")
             return
 
-        answer = HANDLERS[key].handle_button(payload, self.db)
+        answer = HANDLERS[key].handle_button(payload, self.db, query.message.message_id)
         if isinstance(answer, dict):
             if 'message' in answer:
                 buttons = None

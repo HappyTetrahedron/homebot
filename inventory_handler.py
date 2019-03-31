@@ -19,7 +19,7 @@ def matches_message(message):
            or LIST_PATTERN.match(message) is not None
 
 
-def handle(message, db):
+def handle(message, db, _):
     match = PLACE_PATTERN.match(message.lower())
     if match:
         return handle_place(match, db)
@@ -32,7 +32,7 @@ def handle(message, db):
     return "Oh... uh... something went terribly wrong. I'm sorry."
 
 
-def handle_button(data, db):
+def handle_button(data, db, _):
     table = db['inventory']
     thing = table.find_one(id=data)
 

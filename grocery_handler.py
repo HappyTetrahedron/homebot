@@ -13,7 +13,7 @@ def matches_message(message):
            or l.startswith('shopping list')
 
 
-def handle(message, db):
+def handle(message, db, _):
     if message.lower().startswith('buy '):
         return add_item(message[4:], db)
     if message.lower().startswith('grocer') \
@@ -21,7 +21,7 @@ def handle(message, db):
         return grocery_list(db)
 
 
-def handle_button(data, db):
+def handle_button(data, db, _):
     parts = data.split(':')
     cmd = parts[0]
 

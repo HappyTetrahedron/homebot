@@ -13,11 +13,11 @@ def matches_message(message):
     return False
 
 
-def handle(message, db):
+def handle(message, db, message_id):
     pass
 
 
-def handle_button(data, db):
+def handle_button(data, db, message_id):
     pass
 
 
