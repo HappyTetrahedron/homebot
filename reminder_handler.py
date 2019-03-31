@@ -66,6 +66,8 @@ def handle(message, db):
     if 'every' in time_string or 'each' in time_string:
         reminder = create_periodic_reminder(time_string, subject, separator_word)
 
+        if not isinstance(reminder, dict):
+            return reminder
         msg = "I set up your reminder for every {}{}. The first one will happen on ".format(
             "{} ".format(reminder['interval']) if reminder['interval'] > 1 else "",
             unit_to_readable(reminder['unit'], reminder['interval'] == 1),
@@ -127,6 +129,8 @@ def handle_button(data, db):
     if method in [SNOOZE_REMINDER_HOUR, SNOOZE_REMINDER_DAY, SNOOZE_REMINDER_WEEK]:
         amount = ""
         now = datetime.datetime.now()
+        if reminder['periodic']:
+            reminder = copy_periodic_to_onetime_and_rewind(reminder)
         while reminder['next'] < now:
             if method == SNOOZE_REMINDER_HOUR:
                 reminder['next'] = reminder['next'] + datetime.timedelta(hours=1)
@@ -138,7 +142,12 @@ def handle_button(data, db):
                 reminder['next'] = reminder['next'] + datetime.timedelta(days=7)
                 amount = "1 week"
         reminder['active'] = True
-        table.update(reminder, ['id'])
+
+        if 'id' in reminder:
+            table.update(reminder, ['id'])
+        else:
+            table.insert(reminder)
+
         answer = {
             'answer': "Reminder snoozed for {}".format(amount),
             'delete': True,
@@ -179,7 +188,7 @@ def create_periodic_reminder(time_string, subject, separator_word):
                 if 0 < day < 29:  # sorry we can't handle february otherwise.
                     date_time = datetime.datetime(year=now.year, month=now.month, day=day, hour=7, minute=0)
                 else:
-                    return "Oh no, I couldn't understand what you mean by \"{}\". Note that you can only use" \
+                    return "Oh no, I couldn't understand what you mean by \"{}\". Note that you can only use " \
                            "dates (days of month) between 1 and 28, unfortunately.".format(rest)
             else:
                 return "Oh no, I couldn't understand what you mean by \"{}\".".format(rest)
@@ -189,8 +198,8 @@ def create_periodic_reminder(time_string, subject, separator_word):
 
         if parsed == 2:
             # time without date - only makes sense if unit is day or hour:
-            if unit != 'day' and unit != 'hour':
-                return "Oh no, I couldn't understand what you mean by \"{}\". Note that you can only set" \
+            if unit != 'day' and unit != 'h':
+                return "Oh no, I couldn't understand what you mean by \"{}\". Note that you can only set " \
                        "a time (without a weekday or date) if your reminder is every X days or hours".format(rest)
     else:
         if unit == 'min':
@@ -216,7 +225,7 @@ def create_periodic_reminder(time_string, subject, separator_word):
         'separator': separator_word,
     }
 
-    if date_time < now:
+    while reminder['next'] < now:
         advance_periodic_reminder(reminder)
     return reminder
 
@@ -243,11 +252,41 @@ def create_onetime_reminder(time_string, subject, separator_word):
     return reminder
 
 
+def copy_periodic_to_onetime_and_rewind(periodic_reminder):
+    if not periodic_reminder['periodic']:
+        return
+    unit = periodic_reminder['unit']
+    interval = periodic_reminder['interval']
+    onetime_reminder = {
+        'next': periodic_reminder['next'],
+        'subject': periodic_reminder['subject'],
+        'active': periodic_reminder['active'],
+        'periodic': False,
+        'separator': periodic_reminder['separator'],
+    }
+    if unit == 'min':
+        onetime_reminder['next'] -= datetime.timedelta(minutes=interval)
+    if unit == 'h':
+        onetime_reminder['next'] -= datetime.timedelta(hours=interval)
+    if unit == 'day':
+        onetime_reminder['next'] -= datetime.timedelta(days=interval)
+    if unit == 'week':
+        onetime_reminder['next'] -= datetime.timedelta(days=7*interval)
+    if unit == 'month':
+        onetime_reminder['next'] = advance_by_a_month(onetime_reminder['next'], -interval)
+    if unit == 'year':
+        dt = onetime_reminder['next']
+        onetime_reminder['next'] = datetime.datetime(dt.year - interval, dt.month, dt.day, dt.hour, dt.minute)
+
+    return onetime_reminder
+
+
 def advance_periodic_reminder(reminder):
     if not reminder['periodic']:
         return
     unit = reminder['unit']
     interval = reminder['interval']
+
     if unit == 'min':
         reminder['next'] += datetime.timedelta(minutes=interval)
     if unit == 'h':
@@ -262,23 +301,40 @@ def advance_periodic_reminder(reminder):
         dt = reminder['next']
         reminder['next'] = datetime.datetime(dt.year + interval, dt.month, dt.day, dt.hour, dt.minute)
 
+    if params['debug']:
+        logger.info("Periodic reminder advanced by {} {}, new date is {}".format(
+            interval,
+            unit,
+            reminder['next']
+        ))
+
 
 def advance_by_a_month(date_time, months):
-    one_day = datetime.timedelta(days=1)
-    one_month_later = date_time + one_day
-    current_month = date_time.month
-    while months > 0:
-        while one_month_later.month == current_month:  # advance to start of next month
-            one_month_later += one_day
-        months -= 1
-        current_month = one_month_later.month
-    target_month = one_month_later.month
-    while one_month_later.day < date_time.day:  # advance to appropriate day
-        one_month_later += one_day
-        if one_month_later.month != target_month:  # gone too far
-            one_month_later -= one_day
-            break
-    return one_month_later
+
+    new_month = date_time.month + months
+    add_year = 0
+    while new_month > 12:
+        new_month -= 12
+        add_year += 1
+
+    while new_month < 1:
+        new_month += 12
+        add_year -= 1
+
+    day = date_time.day
+
+    if day > 30 and new_month not in [1, 3, 5, 7, 8, 10, 12]:
+        day = 30
+    if day > 28 and new_month == 2:
+        day = 28  # fuck leap years
+
+    return datetime.datetime(
+        date_time.year + add_year,
+        new_month,
+        day,
+        date_time.hour,
+        date_time.minute
+    )
 
 
 def unit_to_readable(unit, singular=False):
@@ -321,10 +377,31 @@ def schedule_pending():
 
         if reminder['periodic']:
             advance_periodic_reminder(reminder)
-            buttons = [[{
-                'text': "Remove this reminder",
-                'data': '{}:{}'.format(reminder['id'], REMOVE_PERIODIC_REMINDER)
-            }]]
+            buttons = [
+                [{
+
+                    'text': 'Got it!',
+                    'data': '{}:{}'.format(reminder['id'], REMOVE_BUTTONS),
+                }],
+                [{
+                    'text': "Remove this reminder",
+                    'data': '{}:{}'.format(reminder['id'], REMOVE_PERIODIC_REMINDER)
+                }],
+                [
+                    {
+                        'text': "+1h",
+                        'data': '{}:{}'.format(reminder['id'], SNOOZE_REMINDER_HOUR),
+                    },
+                    {
+                        'text': "+1d",
+                        'data': '{}:{}'.format(reminder['id'], SNOOZE_REMINDER_DAY),
+                    },
+                    {
+                        'text': "+1w",
+                        'data': '{}:{}'.format(reminder['id'], SNOOZE_REMINDER_WEEK),
+                    },
+                ],
+            ]
         else:
             reminder['active'] = False
             buttons = [
