@@ -36,6 +36,7 @@ COLORS = {
     'cyan': '#00FFFF',
     'aqua': '#00FFFF',
     'chocolate': '#D2691E',
+    'brown': '#D2691E',
     'coral': '#FF7F50',
     'crimson': '#DC143C',
     'dark blue': '#00008B',
@@ -102,7 +103,7 @@ def matches_message(message):
            or message.lower().startswith("activate ")
 
 
-def handle(message, _, x):
+def handle(message, **kwargs):
     try:
         match = IS_X_ON_PATTERN.match(message)
         if match:
@@ -130,11 +131,11 @@ def handle(message, _, x):
         }
 
 
-def handle_button(data, _, x):
+def handle_button(data, **kwargs):
     parts = data.split(':', 2)
     cmd = parts[0]
     if cmd == TRY_AGAIN:
-        msg = handle(parts[1], None)
+        msg = handle(parts[1])
         if msg['message'] == TIMEOUT_MESSAGE:
             return "It still doesn't work"
         msg['answer'] = get_affirmation()

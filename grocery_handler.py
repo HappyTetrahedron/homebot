@@ -16,7 +16,8 @@ def matches_message(message):
            or l.startswith('shopping list')
 
 
-def handle(message, db, _):
+def handle(message, **kwargs):
+    db = kwargs['db']
     if message.lower().startswith('buy '):
         return add_item(message[4:], db, 'shopping')
     if message.lower().startswith('grocer') \
@@ -34,7 +35,8 @@ def handle(message, db, _):
         return add_item(message[5:], db, 'packing')
 
 
-def handle_button(data, db, _):
+def handle_button(data, **kwargs):
+    db = kwargs['db']
     parts = data.split(':')
     cmd = parts[0]
 

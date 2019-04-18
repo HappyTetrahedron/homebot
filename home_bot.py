@@ -34,6 +34,15 @@ HANDLERS = {
     trains_handler.key: trains_handler,
 }
 
+PERM_OWNER = "owner"
+PERM_ADMIN = "admin"
+
+
+PERMISSIONS = [
+    PERM_OWNER,
+    PERM_ADMIN,
+]
+
 
 class PollBot:
     def __init__(self):
@@ -58,7 +67,9 @@ class PollBot:
             buttons.append(row)
         return InlineKeyboardMarkup(buttons)
 
-    def send_message(self, message, key=None, update_message_id=None):
+    def send_message(self, message, key=None, update_message_id=None, recipient_id=None):
+        if recipient_id is None:
+            recipient_id = self.config['owner_id']
         if isinstance(message, dict):
             buttons = None
             if 'buttons' in message:
@@ -68,7 +79,7 @@ class PollBot:
             if 'photo' in message:
                 if update_message_id is not None:
                     self.bot.edit_message_media(
-                        chat_id=self.config['owner_id'],
+                        chat_id=recipient_id,
                         message_id=update_message_id,
                         reply_markup=buttons,
                         media=InputMediaPhoto(
@@ -78,7 +89,7 @@ class PollBot:
                         )
                     )
                 else:  # new photo
-                    self.bot.send_photo(self.config['owner_id'],
+                    self.bot.send_photo(recipient_id,
                                         open(message['photo'], 'rb'),
                                         caption=message.get('message'),
                                         reply_markup=buttons,
@@ -88,12 +99,12 @@ class PollBot:
                     self.bot.edit_message_text(
                         text=message['message'],
                         reply_markup=buttons,
-                        chat_id=self.config['owner_id'],
+                        chat_id=recipient_id,
                         message_id=update_message_id,
                         parse_mode=message.get('parse_mode')
                     )
                 else:
-                    self.bot.send_message(self.config['owner_id'],
+                    self.bot.send_message(recipient_id,
                                           message['message'],
                                           reply_markup=buttons,
                                           parse_mode=message.get('parse_mode'))
@@ -101,23 +112,32 @@ class PollBot:
             if update_message_id is not None:
                 self.bot.edit_message_text(
                     text=message,
-                    chat_id=self.config['owner_id'],
+                    chat_id=recipient_id,
                     message_id=update_message_id
                 )
             else:
-                self.bot.send_message(self.config['owner_id'], message)
+                self.bot.send_message(recipient_id, message)
 
     def handle_message(self, bot, update):
-        if str(update.message.from_user.id) != str(self.config['owner_id']):
-            print(update.message.from_user.id)
-            print(self.config['owner_id'])
+        permission = ""
+        if self.config['debug']:
+            logger.info(update.message.from_user.id)
+        if str(update.message.from_user.id) == str(self.config['owner_id']):
+            permission = PERM_OWNER
+        if str(update.message.from_user.id) in self.config['admin_ids']:
+            permission = PERM_ADMIN
+        if permission not in PERMISSIONS:
             update.message.reply_text("You're not my master. I won't talk to you!")
             return
         for key, handler in HANDLERS.items():
-            if handler.matches_message(update.message.text):
-                reply = handler.handle(update.message.text, self.db, update.message.message_id)
-                self.send_message(reply, handler.key)
-                return
+            if update.message.text is not None:
+                if handler.matches_message(update.message.text):
+                    reply = handler.handle(update.message.text,
+                                           db=self.db,
+                                           message_id=update.message.message_id,
+                                           actor_id=update.message.from_user.id)
+                    self.send_message(reply, handler.key, recipient_id=update.message.from_user.id)
+                    return
 
         update.message.reply_text(get_generic_response())
 
@@ -136,7 +156,10 @@ class PollBot:
             query.answer("Something's wrong with this button.")
             return
 
-        answer = HANDLERS[key].handle_button(payload, self.db, query.message.message_id)
+        answer = HANDLERS[key].handle_button(payload,
+                                             db=self.db,
+                                             message_id=query.message.message_id,
+                                             actor_id=query.message.chat.id)
         if isinstance(answer, dict):
             if 'message' in answer:
                 buttons = None

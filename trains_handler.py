@@ -12,11 +12,11 @@ params = {}
 
 key = 'zvv'
 
-NEXT_REGEX = re.compile('^next\s+(trains?|trams?|bus(?:ses)?|conn(?:ection)?s?)$',
+NEXT_REGEX = re.compile('^(?:next\s+)?(trains?|trams?|bus(?:ses)?|conn(?:ection)?s?)$',
                         flags=re.I)
-NEXT_FROM_REGEX = re.compile('^next\s+(trains?|trams?|bus(?:ses)?|conn(?:ection)?s?)\s+from\s+(.+)$',
+NEXT_FROM_REGEX = re.compile('^(?:next\s+)?(trains?|trams?|bus(?:ses)?|conn(?:ection)?s?)\s+from\s+(.+)$',
                         flags=re.I)
-NEXT_FROM_TO_REGEX = re.compile('^next\s+(trains?|trams?|bus(?:ses)?|conn(?:ection)?s?)\s+from\s+(.+)\s+to\s+(.+)$',
+NEXT_FROM_TO_REGEX = re.compile('(?:^next\s+)?(trains?|trams?|bus(?:ses)?|conn(?:ection)?s?)\s+from\s+(.+)\s+to\s+(.+)$',
                         flags=re.I)
 
 STATIONBOARD_URL = "http://transport.opendata.ch/v1/stationboard?id={}&limit=30"
@@ -67,7 +67,7 @@ def matches_message(message):
         or NEXT_FROM_REGEX.match(message) is not None
 
 
-def handle(message, _, x):
+def handle(message, **kwargs):
     matches = NEXT_FROM_TO_REGEX.match(message)
     if matches:
         groups = matches.groups()
@@ -85,7 +85,10 @@ def handle(message, _, x):
         return stationboard_message(params['config']['home_stations'], types or params['config']['home_types'])
 
 
-def handle_button(data, db, message_id):
+def handle_button(data, **kwargs):
+    db = kwargs['db']
+    message_id = kwargs['message_id']
+    actor_id = kwargs['actor_id']
     parts = data.split(':', 1)
     cmd = parts[0]
     payload = parts[1]
@@ -115,6 +118,7 @@ def handle_button(data, db, message_id):
             'stations': ",".join(stations),
             'types': ",".join(types),
             'until': datetime.datetime.now() + datetime.timedelta(minutes=15),
+            'actor': actor_id,
         }
         auto_refreshes.insert(auto_refresh)
         msg = stationboard_message(stations, types, stop_auto_refresh=True)
@@ -129,6 +133,7 @@ def handle_button(data, db, message_id):
             'from_station': from_station,
             'to_station': to_station,
             'until': datetime.datetime.now() + datetime.timedelta(minutes=15),
+            'actor': actor_id,
         }
         auto_refreshes.insert(auto_refresh)
         msg = find_connection(from_station, to_station, stop_auto_refresh=True)
@@ -166,6 +171,7 @@ def find_connection(from_query, to_query, stop_auto_refresh=False):
                 format_duration_string(connection['duration']),
                 format_duration_seconds(connection['from']['departureTimestamp'] - next_minute)
             )
+            logger.info("MESSAGE ---- {}".format(msg))
             for section in connection['sections']:
                 if section['journey']:
                     msg += "{} {} {}{}  *{}* {} ─ {} {}\n".format(
@@ -193,6 +199,8 @@ def find_connection(from_query, to_query, stop_auto_refresh=False):
                     )
             msg += "\n"
 
+    if msg == "":
+        return "Oh no, there don't seem to be any connections between these stations. Do they really exist?"
     return {
         'message': msg,
         'parse_mode': 'markdown',
@@ -295,7 +303,10 @@ def run_periodically(db):
             if params['debug']:
                 logger.info("Removing auto-refresh for message {}".format(auto_refresh['message']))
             table.delete(id=auto_refresh['id'])
-        params['sendmsg'](msg, update_message_id=auto_refresh['message'], key=key)
+        params['sendmsg'](msg,
+                          update_message_id=auto_refresh['message'],
+                          key=key,
+                          recipient_id=auto_refresh['actor'] if 'actor' in auto_refresh else None)
 
 
 def get_auto_refresh_message(auto_refresh, continue_refreshing=True):

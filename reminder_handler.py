@@ -42,7 +42,9 @@ def matches_message(message):
     return PATTERN.match(message) is not None
 
 
-def handle(message, db, _):
+def handle(message, **kwargs):
+    db = kwargs['db']
+    actor_id = kwargs['actor_id']
     match = PATTERN.match(message)
     if not match:
         return "This wasn't supposed to happen."
@@ -53,7 +55,7 @@ def handle(message, db, _):
     subject = groups[2]
 
     if 'every' in time_string or 'each' in time_string:
-        reminder = create_periodic_reminder(time_string, subject, separator_word)
+        reminder = create_periodic_reminder(time_string, subject, separator_word, actor_id)
 
         if not isinstance(reminder, dict):
             return reminder
@@ -63,29 +65,33 @@ def handle(message, db, _):
         ) + '{}'
 
     else:
-        reminder = create_onetime_reminder(time_string, subject, separator_word)
+        reminder = create_onetime_reminder(time_string, subject, separator_word, actor_id)
         msg = "I set up your reminder for {}"
 
-    table = db['reminders']
-    reminder_id = table.insert(reminder)
-    return {
-        'message': msg.format(
-            reminder['next'].strftime("%A, %B %-d %Y at %-H:%M")
-        ),
-        'buttons': [[
-            {
-                'text': "Thanks!",
-                'data': "0:{}".format(DELETE_MESSAGE)
-            },
-            {
-                'text': "No wait",
-                'data': "{}:{}".format(reminder_id, REMOVE_REMINDER)
-            },
-        ]],
-    }
+    if isinstance(reminder, dict):
+        table = db['reminders']
+        reminder_id = table.insert(reminder)
+        return {
+            'message': msg.format(
+                reminder['next'].strftime("%A, %B %-d %Y at %-H:%M")
+            ),
+            'buttons': [[
+                {
+                    'text': "Thanks!",
+                    'data': "0:{}".format(DELETE_MESSAGE)
+                },
+                {
+                    'text': "No wait",
+                    'data': "{}:{}".format(reminder_id, REMOVE_REMINDER)
+                },
+            ]],
+        }
+    else:
+        return reminder
 
 
-def handle_button(data, db, _):
+def handle_button(data, **kwargs):
+    db = kwargs['db']
     parts = data.split(':')
     reminder_id = int(parts[0])
     method = parts[1]
@@ -144,7 +150,7 @@ def handle_button(data, db, _):
     return answer
 
 
-def create_periodic_reminder(time_string, subject, separator_word):
+def create_periodic_reminder(time_string, subject, separator_word, actor_id):
     now = datetime.datetime.now()
     time_string_parts = time_string.split()
 
@@ -212,6 +218,7 @@ def create_periodic_reminder(time_string, subject, separator_word):
         'interval': interval,
         'unit': unit,
         'separator': separator_word,
+        'actor': actor_id,
     }
 
     while reminder['next'] < now:
@@ -219,7 +226,7 @@ def create_periodic_reminder(time_string, subject, separator_word):
     return reminder
 
 
-def create_onetime_reminder(time_string, subject, separator_word):
+def create_onetime_reminder(time_string, subject, separator_word, actor_id):
     now = datetime.datetime.now()
     date_time, parsed = calendar.parseDT(time_string)
     if parsed == 0:
@@ -237,6 +244,7 @@ def create_onetime_reminder(time_string, subject, separator_word):
         'active': True,
         'periodic': False,
         'separator': separator_word,
+        'actor': actor_id,
     }
     return reminder
 
@@ -252,6 +260,7 @@ def copy_periodic_to_onetime_and_rewind(periodic_reminder):
         'active': periodic_reminder['active'],
         'periodic': False,
         'separator': periodic_reminder['separator'],
+        'actor': periodic_reminder['actor'],
     }
     if unit == 'min':
         onetime_reminder['next'] -= datetime.timedelta(minutes=interval)
@@ -415,7 +424,7 @@ def run_periodically(db):
         send({
             'message': msg,
             'buttons': buttons,
-        }, key=key)
+        }, key=key, recipient_id=reminder['actor'] if 'actor' in reminder else None)
 
         if debug:
             logger.info("Updating reminder {}".format(count))

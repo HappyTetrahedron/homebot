@@ -35,7 +35,7 @@ def matches_message(message):
     return "weather" in message.lower()
 
 
-def handle(message, _, x):
+def handle(message, **kwargs):
     zip = params['config']['zip']
     city_name = params['config']['city']
 
@@ -99,7 +99,7 @@ def handle(message, _, x):
     return get_weather_data(zip, city_name, "tomorrow" in message)
 
 
-def handle_button(data, x, _):
+def handle_button(data, **kwargs):
     parts = data.split(":", 1)
     cmd = parts[0]
     parts = parts[1].split(":")
