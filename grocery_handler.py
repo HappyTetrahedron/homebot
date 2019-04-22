@@ -12,7 +12,8 @@ def matches_message(message):
            or l.startswith('grocer') \
            or l.startswith('gift ') \
            or l.startswith('gifts') \
-           or l.startswith('pack') \
+           or l.startswith('pack ') \
+           or l.startswith('packing') \
            or l.startswith('shopping list')
 
 
