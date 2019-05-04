@@ -17,6 +17,7 @@ import grocery_handler
 import weather_handler
 import trains_handler
 import pc_handler
+import cavs_handler
 
 from utils import get_affirmation, get_generic_response
 from utils import PERMISSIONS, PERM_ADMIN, PERM_OWNER
@@ -35,6 +36,7 @@ HANDLERS = {
     weather_handler.key: weather_handler,
     trains_handler.key: trains_handler,
     pc_handler.key: pc_handler,
+    cavs_handler.key: cavs_handler,
 }
 
 
