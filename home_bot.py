@@ -16,8 +16,10 @@ import hue_handler
 import grocery_handler
 import weather_handler
 import trains_handler
+import pc_handler
 
 from utils import get_affirmation, get_generic_response
+from utils import PERMISSIONS, PERM_ADMIN, PERM_OWNER
 
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -32,16 +34,8 @@ HANDLERS = {
     grocery_handler.key: grocery_handler,
     weather_handler.key: weather_handler,
     trains_handler.key: trains_handler,
+    pc_handler.key: pc_handler,
 }
-
-PERM_OWNER = "owner"
-PERM_ADMIN = "admin"
-
-
-PERMISSIONS = [
-    PERM_OWNER,
-    PERM_ADMIN,
-]
 
 
 class PollBot:
@@ -121,7 +115,7 @@ class PollBot:
     def handle_message(self, bot, update):
         permission = ""
         if self.config['debug']:
-            logger.info(update.message.from_user.id)
+            logger.info("Received message from {}".format(update.message.from_user.id))
         if str(update.message.from_user.id) == str(self.config['owner_id']):
             permission = PERM_OWNER
         if str(update.message.from_user.id) in self.config['admin_ids']:
@@ -135,7 +129,8 @@ class PollBot:
                     reply = handler.handle(update.message.text,
                                            db=self.db,
                                            message_id=update.message.message_id,
-                                           actor_id=update.message.from_user.id)
+                                           actor_id=update.message.from_user.id,
+                                           permission=permission)
                     self.send_message(reply, handler.key, recipient_id=update.message.from_user.id)
                     return
 
@@ -144,6 +139,15 @@ class PollBot:
     def handle_inline_button(self, bot, update):
         query = update.callback_query
         data = update.callback_query.data
+
+        permission = ""
+        if str(query.message.chat.id) == str(self.config['owner_id']):
+            permission = PERM_OWNER
+        if str(query.message.chat.id) in self.config['admin_ids']:
+            permission = PERM_ADMIN
+        if permission not in PERMISSIONS:
+            return
+
         data = data.split('#', 1)
 
         if len(data) < 2:
@@ -159,7 +163,9 @@ class PollBot:
         answer = HANDLERS[key].handle_button(payload,
                                              db=self.db,
                                              message_id=query.message.message_id,
-                                             actor_id=query.message.chat.id)
+                                             actor_id=query.message.chat.id,
+                                             permission=permission
+                                             )
         if isinstance(answer, dict):
             if 'message' in answer:
                 buttons = None

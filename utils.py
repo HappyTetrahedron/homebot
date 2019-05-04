@@ -2,6 +2,15 @@ import random
 from unicodedata import normalize
 
 
+PERM_OWNER = "owner"
+PERM_ADMIN = "admin"
+
+PERMISSIONS = [
+    PERM_OWNER,
+    PERM_ADMIN,
+]
+
+
 AFFIRMATIONS = [
     "Cool",
     "Nice",
