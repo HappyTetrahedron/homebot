@@ -1,6 +1,7 @@
 from base_handler import *
 import subprocess
 import json
+import time
 import requests
 from utils import PERM_OWNER
 
@@ -15,7 +16,7 @@ REMOVE_BUTTONS = "rm"
 
 
 def matches_message(message):
-    return message.startswith('pc')
+    return message.lower().startswith('pc')
 
 
 def setup(config, send_message):
@@ -82,9 +83,15 @@ def handle_button(data, **kwargs):
     if cmd == SHUT_DOWN:
         return shut_down()
     if cmd == TURN_POWER_OFF:
-        return turn_power_off()
+        return {
+            "message": turn_power_off(),
+            "answer": "Gotcha!",
+        }
     if cmd == TURN_ON:
-        return turn_on()
+        return {
+            "message": turn_on(),
+            "answer": "Gotcha!",
+        }
     if cmd == REMOVE_BUTTONS:
         if is_on():
             return {
@@ -160,26 +167,31 @@ def turn_power_off(force=False):
     if not force:
         if is_on():
             return "Your PC is on. I won't cut power."
-    else:
-        response = requests.get("{}/relay?state=0".format(params['config']['switch_ip']))
-        if response.status_code == 200:
-            return "Alright, I turned off your PC's power."
-        return "I wasn't able to turn off your PC's power, sorry :("
+    response = requests.get("{}/relay?state=0".format(params['config']['switch_ip']))
+    if response.status_code == 200:
+        return "Alright, I turned off your PC's power."
+    return "I wasn't able to turn off your PC's power, sorry :("
 
 
 def turn_on(force=False):
     if not force:
         if is_on():
             return "Your PC is already on. I won't cycle power."
-    else:
-        response = requests.get("{}/timer?mode=off&time=5".format(params['config']['switch_ip']))
-        if response.status_code == 200:
-            return "Your PC should now be turning on."
+
+    if is_powered():
+        response = requests.get("{}/relay?state=0".format(params['config']['switch_ip']))
+        if response.status_code != 200:
+            return "I wasn't able to cycle power, sorry :("
+        time.sleep(2)
+
+    response = requests.get("{}/relay?state=1".format(params['config']['switch_ip']))
+    if response.status_code != 200:
         return "I wasn't able to turn on your PC, sorry :("
+    return "Your PC should now be turning on."
 
 
 def is_powered():
-    status = json.loads(requests.get(params['config']['switch_ip']).text)
+    status = json.loads(requests.get("{}/report".format(params['config']['switch_ip'])).text)
     return status['relay']
 
 
