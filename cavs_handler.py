@@ -8,6 +8,7 @@ params = {}
 
 def setup(config, send_message):
     params['cmd'] = config['cavs_init_command']
+    params['sendmsg'] = send_message
 
 
 def matches_message(message):
@@ -15,9 +16,10 @@ def matches_message(message):
 
 
 def handle(message, **kwargs):
+    params['sendmsg']("All right, give me a second...")
     status, out, err = run_command(params["cmd"])
     if status == 0:
-        return "Alright, the CAVS are initialized"
+        return "The CAVS are initialized."
     return "There seems to have been an issue: \n{}".format(err)
 
 
