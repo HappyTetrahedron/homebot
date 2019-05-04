@@ -179,7 +179,7 @@ def turn_on(force=False):
 
 
 def is_powered():
-    status = json.loads(requests.get(params['config']['switch_status']).text)
+    status = json.loads(requests.get(params['config']['switch_ip']).text)
     return status['relay']
 
 
