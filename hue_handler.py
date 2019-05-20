@@ -3,7 +3,7 @@ from base_handler import *
 import re
 import hue
 import requests
-from utils import get_affirmation
+from utils import get_affirmation, PERM_ADMIN
 
 key = "hue"
 
@@ -104,6 +104,8 @@ def matches_message(message):
 
 
 def handle(message, **kwargs):
+    if kwargs['permission'] < PERM_ADMIN:
+        return "Sorry, I can't mess with the lights for you."
     try:
         match = IS_X_ON_PATTERN.match(message)
         if match:

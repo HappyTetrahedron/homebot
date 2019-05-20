@@ -1,6 +1,8 @@
 from base_handler import *
 import subprocess
 
+from utils import PERM_ADMIN
+
 key = "cavs"
 
 params = {}
@@ -16,6 +18,8 @@ def matches_message(message):
 
 
 def handle(message, **kwargs):
+    if kwargs['permission'] < PERM_ADMIN:
+        return "Sorry, you can't do this."
     params['sendmsg']("All right, give me a second...")
     status, out, err = run_command(params["cmd"])
     if status == 0:

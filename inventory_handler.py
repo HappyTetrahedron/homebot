@@ -1,7 +1,7 @@
 from base_handler import *
 import re
 import datetime
-from utils import fuzzy_match
+from utils import fuzzy_match, PERM_ADMIN
 
 PLACE_PATTERN = re.compile('^\s*the\s+(.+?)\s+(is|are)\s+(.+?)\s+the\s+(.+?)\.?\s*$',
                            flags=re.I)
@@ -20,6 +20,8 @@ def matches_message(message):
 
 
 def handle(message, **kwargs):
+    if kwargs['permission'] < PERM_ADMIN:
+        return "Sorry, I won't tell you where anything is."
     db = kwargs['db']
     match = PLACE_PATTERN.match(message.lower())
     if match:

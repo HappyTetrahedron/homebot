@@ -1,39 +1,38 @@
 from base_handler import *
 import datetime
 
+from utils import PERM_ADMIN
+
 key = "gro"
 
-REMOVE_ITEM ='rm'
+REMOVE_ITEM = 'rm'
+
+params = {}
+
+
+def setup(config, _):
+    params['lists'] = config['groceries']['lists']
 
 
 def matches_message(message):
     l = message.lower()
-    return l.startswith('buy ') \
-           or l.startswith('grocer') \
-           or l.startswith('gift ') \
-           or l.startswith('gifts') \
-           or l.startswith('pack ') \
-           or l.startswith('packing') \
-           or l.startswith('shopping list')
+    return any([any([l.startswith(prefix) for prefix in x['add_prefices']])
+                or any([l.startswith(prefix) for prefix in x['show_prefices']])
+                for x in params['lists']])
 
 
 def handle(message, **kwargs):
+    if kwargs['permission'] < PERM_ADMIN:
+        return "Sorry, you don't get to see the shopping list."
     db = kwargs['db']
-    if message.lower().startswith('buy '):
-        return add_item(message[4:], db, 'shopping')
-    if message.lower().startswith('grocer') \
-            or message.lower().startswith('shopping list'):
-        return grocery_list(db, 'shopping')
-    if message.lower().startswith('gift idea') \
-            or message.lower().startswith('gift list') \
-            or message.lower().startswith('gifts'):
-        return grocery_list(db, 'gifts')
-    elif message.lower().startswith('gift '):
-        return add_item(message[5:], db, 'gifts')
-    if message.lower().startswith('packing'):
-        return grocery_list(db, 'packing')
-    elif message.lower().startswith('pack '):
-        return add_item(message[5:], db, 'packing')
+    l = message.lower()
+    for list_type in params['lists']:
+        for prefix in list_type['add_prefices']:
+            if l.startswith(prefix):
+                return add_item(message[len(prefix):], db, list_type['name'])
+        if any([l.startswith(prefix) for prefix in list_type['show_prefices']]):
+            return grocery_list(db, list_type['name'])
+    return "Whoopsie, this never happens"
 
 
 def handle_button(data, **kwargs):
