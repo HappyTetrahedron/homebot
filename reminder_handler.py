@@ -362,8 +362,8 @@ def unit_to_readable(unit, singular=False):
 
 def reminder_to_string(reminder):
     return "Remember{} {}".format(
-        ' to' if 'separator' not in reminder or not reminder['separator'] else
-        reminder['separator'] if len(reminder['separator']) == 1 else
+        ' to' if 'separator' not in reminder or reminder['separator'] is None else
+        reminder['separator'] if len(reminder['separator']) <= 1 else
         " {}".format(reminder['separator']),
         reminder['subject'])
 
