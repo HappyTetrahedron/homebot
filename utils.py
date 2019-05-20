@@ -4,7 +4,7 @@ from unicodedata import normalize
 
 PERM_OWNER = 100
 PERM_ADMIN = 50
-PERM_USER = 0
+PERM_USER = 10
 
 PERMISSIONS = [
     PERM_OWNER,

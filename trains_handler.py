@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 params = {}
 
 key = 'zvv'
+name = "Train connections"
 
 NEXT_REGEX = re.compile('^(?:next\s+)?(trains?|trams?|bus(?:ses)?|conn(?:ection)?s?)$',
                         flags=re.I)
@@ -60,6 +61,18 @@ def setup(config, send_message):
     params['config'] = config['trains']
     params['sendmsg'] = send_message
     params['debug'] = config['debug']
+
+
+def help(permission):
+    return {
+        'summary': "Keeps an eye on the train schedule",
+        'examples': [
+            "Next trains",
+            "Trains from <station>",
+            "Next trains from <station> to <station>",
+            "Next trains from Zürich to St. Gallen",
+        ],
+    }
 
 
 def matches_message(message):

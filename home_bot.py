@@ -20,7 +20,7 @@ import pc_handler
 import cavs_handler
 
 from utils import get_affirmation, get_generic_response
-from utils import PERMISSIONS, PERM_ADMIN, PERM_OWNER
+from utils import PERMISSIONS, PERM_ADMIN, PERM_OWNER, PERM_USER
 
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -47,6 +47,16 @@ class PollBot:
         self.config = None
         self.bot = None
         self.exit = threading.Event()
+
+    def get_permissions(self, user_id):
+        permission = None
+        if str(user_id) == str(self.config['owner_id']):
+            permission = PERM_OWNER
+        if str(user_id) in self.config['admin_ids']:
+            permission = PERM_ADMIN
+        if str(user_id) in self.config['user_ids']:
+            permission = PERM_USER
+        return permission
 
     @staticmethod
     def assemble_inline_buttons(button_data, prefix_key):
@@ -115,13 +125,9 @@ class PollBot:
                 self.bot.send_message(recipient_id, message)
 
     def handle_message(self, bot, update):
-        permission = ""
+        permission = self.get_permissions(update.message.from_user.id)
         if self.config['debug']:
             logger.info("Received message from {}".format(update.message.from_user.id))
-        if str(update.message.from_user.id) == str(self.config['owner_id']):
-            permission = PERM_OWNER
-        if str(update.message.from_user.id) in self.config['admin_ids']:
-            permission = PERM_ADMIN
         if permission not in PERMISSIONS:
             update.message.reply_text("You're not my master. I won't talk to you!")
             return
@@ -142,11 +148,7 @@ class PollBot:
         query = update.callback_query
         data = update.callback_query.data
 
-        permission = ""
-        if str(query.message.chat.id) == str(self.config['owner_id']):
-            permission = PERM_OWNER
-        if str(query.message.chat.id) in self.config['admin_ids']:
-            permission = PERM_ADMIN
+        permission = self.get_permissions(query.message.chat.id)
         if permission not in PERMISSIONS:
             return
 
@@ -202,11 +204,26 @@ class PollBot:
             query.answer(answer)
 
     # Help command handler
-    @staticmethod
-    def handle_help(bot, update):
+    def handle_help(self, bot, update):
         """Send a message when the command /help is issued."""
         helptext = "I am HappyTetrahedron's personal butler.\n\b" \
                    "If you are not HappyTetrahedron, I fear I won't be useful to you."
+
+        permission = self.get_permissions(update.message.from_user.id)
+
+        if permission not in PERMISSIONS:
+            update.message.reply_text(helptext, parse_mode="Markdown")
+            return
+
+        helptext = "I am HappyTetrahedron's personal butler.\n\n"
+        for handler in HANDLERS.values():
+            handler_help = handler.help(permission)
+            if handler_help:
+                helptext += "*{}:*\n".format(handler.name)
+                helptext += "{}\n".format(handler_help['summary'])
+                for example in handler_help['examples']:
+                    helptext += " _{}_\n".format(example)
+                helptext += "\n"
 
         update.message.reply_text(helptext, parse_mode="Markdown")
 

@@ -11,6 +11,7 @@ from unicodedata import normalize
 import weather_plotter
 
 key = "wth"
+name = "Weather Forecast"
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,17 @@ REFRESH = "ref"
 
 def setup(config, send_message):
     params['config'] = config['weather']
+
+
+def help(permission):
+    return {
+        'summary': "Tells you the weather for the next 24 hours",
+        'examples': [
+            "Weather",
+            "Weather tomorrow",
+            "Weather in Appenzell",
+        ],
+    }
 
 
 def matches_message(message):

@@ -6,6 +6,7 @@ import requests
 from utils import PERM_OWNER
 
 key = "pc"
+name = "Computer Control"
 
 params = {}
 
@@ -17,6 +18,14 @@ REMOVE_BUTTONS = "rm"
 
 def matches_message(message):
     return message.lower().startswith('pc')
+
+
+def help(permission):
+    if permission >= PERM_OWNER:
+        return {
+            'summary': "Can turn your PC on and off",
+            'examples': ["PC"],
+        }
 
 
 def setup(config, send_message):

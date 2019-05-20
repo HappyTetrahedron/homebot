@@ -1,4 +1,9 @@
 key = 'CHANGEME'
+name = 'Unnamed Feature'
+
+
+def help(permission):
+    return "This feature does not yet have a help text."
 
 
 def setup(config, send_message):

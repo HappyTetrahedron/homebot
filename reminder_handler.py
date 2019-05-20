@@ -7,11 +7,12 @@ from utils import get_affirmation
 
 logger = logging.getLogger(__name__)
 
-PATTERN = re.compile('^remind(?:\s+me)?\s+(.+?)\s*(to|:|that)\s+(.+?)\s*$',
+PATTERN = re.compile('^remind(?:\s+me)?\s+(.+?)\s*(to|:|that|about)\s+(.+?)\s*$',
                      flags=re.I)
 params = {}
 
 key = 'rem'
+name = "Reminders"
 
 calendar = parsedatetime.Calendar()
 
@@ -38,6 +39,20 @@ def setup(config, send_message):
     params['sendmsg'] = send_message
 
 
+def help(permission):
+    return {
+        'summary': "Makes sure you never forget things again.",
+        'examples': [
+            "Remind me <time> to <thing>",
+            "Remind me tomorrow to do laundry",
+            "Remind me in three days to take out trash",
+            "Remind me on July 15 at 13:40 to call mom",
+            "Remind me each Wednesday to water the plants",
+            "Remind me every year on August 18 that it's my birthday",
+        ],
+    }
+
+
 def matches_message(message):
     return PATTERN.match(message) is not None
 
@@ -52,6 +67,8 @@ def handle(message, **kwargs):
     groups = match.groups()
     time_string = groups[0]
     separator_word = groups[1]
+    if separator_word == 'about':
+        separator_word = ''
     subject = groups[2]
 
     if 'every' in time_string or 'each' in time_string:

@@ -11,6 +11,15 @@ LIST_PATTERN = re.compile('^\s*what(?:\s+is|\'s)\s+(.+?)\s+the\s+(.+?)\??\s*$',
                           flags=re.I)
 
 key = 'inv'
+name = "Inventory Keeper"
+
+
+def help(permission):
+    if permission >= PERM_ADMIN:
+        return {
+            'summary': "Remembers where your things are",
+            'examples': ["The <item> is in <location>", "Where is the <item>?"],
+        }
 
 
 def matches_message(message):

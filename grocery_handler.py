@@ -4,6 +4,7 @@ import datetime
 from utils import PERM_ADMIN
 
 key = "gro"
+name = "Grocery Lists"
 
 REMOVE_ITEM = 'rm'
 
@@ -12,6 +13,27 @@ params = {}
 
 def setup(config, _):
     params['lists'] = config['groceries']['lists']
+
+
+def help(permission):
+    if permission >= PERM_ADMIN:
+        example_list = next(iter(params['lists']), None)
+        example_add = next(iter(example_list['add_prefices'] or []), None)
+        example_show = next(iter(example_list['show_prefices'] or []), None)
+
+        extended_help = ""
+        for list_type in params['lists']:
+            extended_help += "{}:\n".format(list_type['name'])
+            for prefix in list_type['add_prefices']:
+                extended_help += " __{}<item>__\n".format(prefix)
+            for prefix in list_type['show_prefices']:
+                extended_help += " __{}__\n".format(prefix)
+            extended_help += "\n"
+        return {
+            'summary': "Maintains your grocery list, and other lists.",
+            'examples': ["{}<item>".format(example_add), example_show],
+            'extended': extended_help,
+        }
 
 
 def matches_message(message):

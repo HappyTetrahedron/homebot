@@ -4,8 +4,17 @@ import subprocess
 from utils import PERM_ADMIN
 
 key = "cavs"
+name = "Initialize CAVS"
 
 params = {}
+
+
+def help(permission):
+    if permission >= PERM_ADMIN:
+        return {
+            'summary': "Initializes the CAVS.",
+            'examples': ["initialize cavs"],
+        }
 
 
 def setup(config, send_message):

@@ -6,6 +6,7 @@ import requests
 from utils import get_affirmation, PERM_ADMIN
 
 key = "hue"
+name = "Light Control"
 
 TURN_ON_X_PATTERN = re.compile("^turn\s+(on|off)\s+(?:lights?\s+)?(?:in\s+)?(?:the\s+)?(.+?)(?:\s+lights?)?$",
                                flags=re.I)
@@ -93,6 +94,19 @@ params = {}
 def setup(config, send_message):
     params['hue'] = hue.Hue(config['hue'])
     params['rooms'] = config['hue_rooms']
+
+
+def help(permission):
+    if permission >= PERM_ADMIN:
+        example_room = next(iter(params['rooms'].keys()))
+        all_rooms = "Available rooms:\n"
+        for room in params['rooms'].keys():
+            all_rooms += "- {}\n".format(room)
+        return {
+            'summary': "Controls your Philips Hue lights",
+            'examples': ["turn lights on", "turn {} off".format(example_room), "activate <scene>", "set lights to pink"],
+            'extended': all_rooms,
+        }
 
 
 def matches_message(message):
