@@ -169,7 +169,12 @@ def handle_button(data, **kwargs):
 
 def create_periodic_reminder(time_string, subject, separator_word, actor_id):
     now = datetime.datetime.now()
-    time_string_parts = time_string.split()
+    split_every = time_string.split("every")
+    if len(split_every) <= 1:
+        split_every = time_string.split("each")
+    part_before = split_every[0]
+    part_after = split_every[1]
+    time_string_parts = part_after.split()
 
     interval = 0
     unit = ""
@@ -193,17 +198,21 @@ def create_periodic_reminder(time_string, subject, separator_word, actor_id):
         interval = 1
 
     if rest:
-        date_time, parsed = calendar.parseDT(rest)
+        contains_date = rest
+    elif part_before:
+        contains_date = part_before
+    if contains_date:
+        date_time, parsed = calendar.parseDT(contains_date)
         if parsed == 0:
             if unit == 'month':
-                day = int(re.sub('\D', '', rest))
+                day = int(re.sub('\D', '', contains_date))
                 if 0 < day < 29:  # sorry we can't handle february otherwise.
                     date_time = datetime.datetime(year=now.year, month=now.month, day=day, hour=7, minute=0)
                 else:
                     return "Oh no, I couldn't understand what you mean by \"{}\". Note that you can only use " \
-                           "dates (days of month) between 1 and 28, unfortunately.".format(rest)
+                           "dates (days of month) between 1 and 28, unfortunately.".format(contains_date)
             else:
-                return "Oh no, I couldn't understand what you mean by \"{}\".".format(rest)
+                return "Oh no, I couldn't understand what you mean by \"{}\".".format(contains_date)
 
         if parsed == 1:
             date_time = datetime.datetime.combine(date_time.date(), datetime.time(hour=7, minute=0))
@@ -212,7 +221,7 @@ def create_periodic_reminder(time_string, subject, separator_word, actor_id):
             # time without date - only makes sense if unit is day or hour:
             if unit != 'day' and unit != 'h':
                 return "Oh no, I couldn't understand what you mean by \"{}\". Note that you can only set " \
-                       "a time (without a weekday or date) if your reminder is every X days or hours".format(rest)
+                       "a time (without a weekday or date) if your reminder is every X days or hours".format(contains_date)
     else:
         if unit == 'min':
             date_time = datetime.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour,
