@@ -17,7 +17,7 @@ def run():
 
 @app.route("/send", methods=['POST'])
 def forward_message():
-    data = request.get_json()
+    data = request.get_json(force=True)
     message = data['message']
     params['send'](message)
     return ""
