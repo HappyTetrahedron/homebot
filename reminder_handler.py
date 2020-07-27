@@ -437,7 +437,7 @@ def run_periodically(db):
             {
                 'text': snooze['button'],
                 'data': '{}:{}'.format(reminder['id'], snooze_type),
-            } for snooze_type, snooze in SNOOZE_REMINDERS
+            } for snooze_type, snooze in SNOOZE_REMINDERS.items()
         ])
 
         send({
