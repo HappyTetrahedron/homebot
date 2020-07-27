@@ -124,7 +124,7 @@ class PollBot:
             else:
                 self.bot.send_message(recipient_id, message)
 
-    def handle_message(self, bot, update):
+    def handle_message(self, update, context):
         permission = self.get_permissions(update.message.from_user.id)
         if self.config['debug']:
             logger.info("Received message from {}".format(update.message.from_user.id))
@@ -144,7 +144,7 @@ class PollBot:
 
         update.message.reply_text(get_generic_response())
 
-    def handle_inline_button(self, bot, update):
+    def handle_inline_button(self, update, context):
         query = update.callback_query
         data = update.callback_query.data
 
@@ -176,7 +176,7 @@ class PollBot:
                 if 'buttons' in answer:
                     buttons = self.assemble_inline_buttons(answer['buttons'], key)
                 if 'photo' in answer:
-                    bot.edit_message_media(
+                    context.bot.edit_message_media(
                         chat_id=query.message.chat.id,
                         message_id=query.message.message_id,
                         reply_markup=buttons,
@@ -187,7 +187,7 @@ class PollBot:
                         )
                     )
                 else:
-                    bot.edit_message_text(
+                    context.bot.edit_message_text(
                         text=answer['message'],
                         reply_markup=buttons,
                         chat_id=query.message.chat.id,
@@ -195,7 +195,7 @@ class PollBot:
                         parse_mode=answer.get('parse_mode')
                     )
             if 'delete' in answer and answer['delete']:
-                bot.delete_message(
+                context.bot.delete_message(
                     chat_id=query.message.chat.id,
                     message_id=query.message.message_id
                 )
@@ -204,7 +204,7 @@ class PollBot:
             query.answer(answer)
 
     # Help command handler
-    def handle_help(self, bot, update):
+    def handle_help(self, update, context):
         """Send a message when the command /help is issued."""
         helptext = "I am HappyTetrahedron's personal butler.\n\b" \
                    "If you are not HappyTetrahedron, I fear I won't be useful to you."
@@ -229,13 +229,13 @@ class PollBot:
 
     # Error handler
     @staticmethod
-    def handle_error(bot, update, error):
+    def handle_error(update, context):
         """Log Errors caused by Updates."""
-        logger.warning('Update "%s" caused error "%s"', update, error)
+        logger.warning('Update "%s" caused error "%s"', update, context.error)
 
     def run(self, opts):
         with open(opts.config, 'r') as configfile:
-            config = yaml.load(configfile)
+            config = yaml.load(configfile, Loader=yaml.SafeLoader)
 
         self.db = dataset.connect('sqlite:///{}'.format(config['db']))
         self.periodic_db = dataset.connect('sqlite:///{}'.format(config['db']))
@@ -247,7 +247,7 @@ class PollBot:
 
         """Start the bot."""
         # Create the EventHandler and pass it your bot's token.
-        updater = Updater(config['token'])
+        updater = Updater(config['token'], use_context=True)
         self.bot = updater.bot
 
         """Set up handlers"""
@@ -297,7 +297,6 @@ class PollBot:
                 logger.exception(e)
         logger.info("Scheduler thread has exited")
         logger.info("Exit signal is {}".format(self.exit.is_set()))
-
 
 
 def main(opts):
