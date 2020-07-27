@@ -433,7 +433,7 @@ def run_periodically(db):
         else:
             reminder['active'] = False
 
-        buttons.extend([
+        buttons.append([
             {
                 'text': snooze['button'],
                 'data': '{}:{}'.format(reminder['id'], snooze_type),
