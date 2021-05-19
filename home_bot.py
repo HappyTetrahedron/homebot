@@ -7,6 +7,7 @@ import logging
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackQueryHandler
+from telegram.error import BadRequest
 import webserver
 import dataset
 
@@ -187,13 +188,17 @@ class PollBot:
                         )
                     )
                 else:
-                    context.bot.edit_message_text(
-                        text=answer['message'],
-                        reply_markup=buttons,
-                        chat_id=query.message.chat.id,
-                        message_id=query.message.message_id,
-                        parse_mode=answer.get('parse_mode')
-                    )
+                    try:
+                        context.bot.edit_message_text(
+                            text=answer['message'],
+                            reply_markup=buttons,
+                            chat_id=query.message.chat.id,
+                            message_id=query.message.message_id,
+                            parse_mode=answer.get('parse_mode')
+                        )
+                    except BadRequest as err: # Ignore "message is not modified"
+                        if "Message is not modified" not in err.message:
+                            raise err
             if 'delete' in answer and answer['delete']:
                 context.bot.delete_message(
                     chat_id=query.message.chat.id,
