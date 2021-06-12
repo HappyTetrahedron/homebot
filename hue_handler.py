@@ -92,11 +92,17 @@ params = {}
 
 
 def setup(config, send_message):
-    params['hue'] = hue.Hue(config['hue'])
-    params['rooms'] = config['hue_rooms']
+    if 'hue' in config:
+        params['hue'] = hue.Hue(config['hue'])
+        params['rooms'] = config['hue_rooms']
+        params['enabled'] = True
+    else:
+        params['enabled'] = False
 
 
 def help(permission):
+    if not params['enabled']:
+        return
     if permission >= PERM_ADMIN:
         example_room = next(iter(params['rooms'].keys()))
         all_rooms = "Available rooms:\n"
@@ -110,6 +116,8 @@ def help(permission):
 
 
 def matches_message(message):
+    if not params['enabled']:
+        return False
     return IS_X_ON_PATTERN.match(message) \
            or TURN_X_ON_PATTERN.match(message) \
            or TURN_ON_X_PATTERN.match(message) \

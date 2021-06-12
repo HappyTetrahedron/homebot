@@ -17,10 +17,14 @@ REMOVE_BUTTONS = "rm"
 
 
 def matches_message(message):
+    if not params['enabled']:
+        return False
     return message.lower().startswith('pc')
 
 
 def help(permission):
+    if not params['enabled']:
+        return
     if permission >= PERM_OWNER:
         return {
             'summary': "Can turn your PC on and off",
@@ -29,7 +33,11 @@ def help(permission):
 
 
 def setup(config, send_message):
-    params['config'] = config['pc']
+    if 'pc' in config:
+        params['config'] = config['pc']
+        params['enabled'] = True
+    else:
+        params['enabled'] = False
 
 
 def handle(message, **kwargs):
