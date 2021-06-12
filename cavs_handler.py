@@ -10,6 +10,8 @@ params = {}
 
 
 def help(permission):
+    if not params['enabled']:
+        return
     if permission >= PERM_ADMIN:
         return {
             'summary': "Initializes the CAVS.",
@@ -18,11 +20,17 @@ def help(permission):
 
 
 def setup(config, send_message):
-    params['cmd'] = config['cavs_init_command']
-    params['sendmsg'] = send_message
+    if 'cavs_init_command' in config:
+        params['cmd'] = config['cavs_init_command']
+        params['sendmsg'] = send_message
+        params['enabled'] = True
+    else:
+        params['enabled'] = False
 
 
 def matches_message(message):
+    if not params['enabled']:
+        return
     return message.lower().startswith('init') and 'cavs' in message.lower()
 
 
