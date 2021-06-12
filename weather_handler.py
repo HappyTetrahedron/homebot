@@ -26,7 +26,12 @@ METEO_PAGE_URL = "https://www.meteoswiss.admin.ch/home.html?tab=overview"
 METEO_FORECAST_URL = "https://www.meteoswiss.admin.ch/product/output/forecast-chart/version__{}/en/{}.json"
 METEO_SEARCH_URL = "https://www.meteoswiss.admin.ch/etc/designs/meteoswiss/ajax/search/{}.json"
 
+METEO_API_HEADERS = {"referer": "https://www.meteoswiss.admin.ch/home.html?tab=overview"}
+
+METEO_LANGUAGE_CODE = '1'
+
 REFRESH = "ref"
+
 
 def setup(config, send_message):
     params['config'] = config['weather']
@@ -57,30 +62,26 @@ def handle(message, **kwargs):
         if location_words:
             location = " ".join(location_words).lower().strip()
             firstletters = de_unicodize(location)[:2]
-            search_results = json.loads(requests.get(METEO_SEARCH_URL.format(firstletters), timeout=7).text)
+            search_results = json.loads(requests.get(
+                METEO_SEARCH_URL.format(firstletters),
+                headers=METEO_API_HEADERS,
+                timeout=7
+            ).text)
+
             cities = []
             for r in search_results:
                 parts = r.split(";")
                 city = {
                     'zip': parts[0],
                     'canton': parts[1],
+                    'name': find_name(parts),
                 }
-
-                iterator = iter(parts[2:])
-                for part in iterator:
-                    city[part] = next(iterator)
                 cities.append(city)
 
             matches = []
             for city in cities:
-                if '4' in city:
-                    if location in city['4'].lower():
-                        city['name'] = city['4']
-                        matches.append(city)
-                if '1' in city:
-                    if location in city['1'].lower():
-                        city['name'] = city['1']
-                        matches.append(city)
+                if location in city['name'].lower():
+                    matches.append(city)
             best_match = {}
             shortest_len = 1000
             for city in matches:
@@ -89,15 +90,7 @@ def handle(message, **kwargs):
                     shortest_len = len(city['name'])
 
             if not best_match:
-                for city in cities:
-                    if '4' in city:
-                        if city['4'].lower() in location:
-                            city['name'] = city['4']
-                            matches.append(city)
-                    elif '1' in city:
-                        if city['1'].lower() in location:
-                            city['name'] = city['1']
-                            matches.append(city)
+                matches = cities
                 longest_len = 0
                 for city in matches:
                     if len(city['name']) > longest_len:
@@ -109,6 +102,10 @@ def handle(message, **kwargs):
                 city_name = "{} {}".format(best_match['name'], best_match['canton'])
 
     return get_weather_data(zip, city_name, "tomorrow" in message)
+
+
+def find_name(meteo_city_parts):
+    return meteo_city_parts[meteo_city_parts.index(METEO_LANGUAGE_CODE) + 1]
 
 
 def handle_button(data, **kwargs):
@@ -133,7 +130,7 @@ def get_weather_data(zip, city_name, for_tomorrow):
 
     json_url = METEO_FORECAST_URL.format(version_timestamp, zip)
 
-    weather_data = json.loads(requests.get(json_url, timeout=7).text)
+    weather_data = json.loads(requests.get(json_url, headers=METEO_API_HEADERS, timeout=7).text)
 
     if for_tomorrow:
         tomorrow = datetime.datetime.now() + datetime.timedelta(days=1)

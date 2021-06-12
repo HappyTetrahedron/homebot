@@ -7,8 +7,7 @@ from utils import get_affirmation
 
 logger = logging.getLogger(__name__)
 
-PATTERN = re.compile('^remind(?:\s+me)?\s+(.+?)\s*(to|:|that|about)\s+(.+?)\s*$',
-                     flags=re.I)
+PATTERN = re.compile('^remind(?:\s+me)?\s+(.+?)\s*(to|:|that|about)\s+(.+?)\s*$', flags=re.I)
 params = {}
 
 key = 'rem'
@@ -28,9 +27,34 @@ UNITS = [
 REMOVE_BUTTONS = 'rb'
 REMOVE_REMINDER = 'rm'
 REMOVE_PERIODIC_REMINDER = 'rmp'
+
 SNOOZE_REMINDER_HOUR = 'snh'
+SNOOZE_REMINDER_6_HOURS = 'sn6h'
 SNOOZE_REMINDER_DAY = 'sn'
 SNOOZE_REMINDER_WEEK = 'snw'
+SNOOZE_REMINDERS = {
+    SNOOZE_REMINDER_HOUR: {
+        'button': "+1h",
+        'amount': "1 hour",
+        'delta': datetime.timedelta(hours=1),
+    },
+    SNOOZE_REMINDER_6_HOURS: {
+        'button': "+6h",
+        'amount': "6 hours",
+        'delta': datetime.timedelta(hours=6),
+    },
+    SNOOZE_REMINDER_DAY: {
+        'button': "+1d",
+        'amount': "1 day",
+        'delta': datetime.timedelta(days=4),
+    },
+    SNOOZE_REMINDER_WEEK: {
+        'button': "+1w",
+        'amount': "1 week",
+        'delta': datetime.timedelta(weeks=1),
+    },
+}
+
 DELETE_MESSAGE = 'dm'
 
 
@@ -138,21 +162,14 @@ def handle_button(data, **kwargs):
             'answer': "Reminder deleted",
             'message': "{}\n\nThis periodic reminder was deleted.".format(reminder_to_string(reminder)),
         }
-    if method in [SNOOZE_REMINDER_HOUR, SNOOZE_REMINDER_DAY, SNOOZE_REMINDER_WEEK]:
-        amount = ""
+    if method in SNOOZE_REMINDERS:
+        snooze = SNOOZE_REMINDERS[method]
         now = datetime.datetime.now()
+        amount = snooze['amount']
         if reminder['periodic']:
             reminder = copy_periodic_to_onetime_and_rewind(reminder)
         while reminder['next'] < now:
-            if method == SNOOZE_REMINDER_HOUR:
-                reminder['next'] = reminder['next'] + datetime.timedelta(hours=1)
-                amount = "1 hour"
-            if method == SNOOZE_REMINDER_DAY:
-                reminder['next'] = reminder['next'] + datetime.timedelta(days=1)
-                amount = "1 day"
-            if method == SNOOZE_REMINDER_WEEK:
-                reminder['next'] = reminder['next'] + datetime.timedelta(days=7)
-                amount = "1 week"
+            reminder['next'] = reminder['next'] + snooze['delta']
         reminder['active'] = True
 
         if 'id' in reminder:
@@ -398,55 +415,31 @@ def run_periodically(db):
 
         msg = reminder_to_string(reminder)
 
+        buttons = [
+            [{
+                'text': 'Got it!',
+                'data': '{}:{}'.format(reminder['id'], REMOVE_BUTTONS),
+            }],
+        ]
+
         if reminder['periodic']:
             advance_periodic_reminder(reminder)
-            buttons = [
-                [{
-
-                    'text': 'Got it!',
-                    'data': '{}:{}'.format(reminder['id'], REMOVE_BUTTONS),
-                }],
+            buttons.append(
                 [{
                     'text': "Remove this reminder",
-                    'data': '{}:{}'.format(reminder['id'], REMOVE_PERIODIC_REMINDER)
+                    'data': '{}:{}'.format(reminder['id'], REMOVE_PERIODIC_REMINDER),
                 }],
-                [
-                    {
-                        'text': "+1h",
-                        'data': '{}:{}'.format(reminder['id'], SNOOZE_REMINDER_HOUR),
-                    },
-                    {
-                        'text': "+1d",
-                        'data': '{}:{}'.format(reminder['id'], SNOOZE_REMINDER_DAY),
-                    },
-                    {
-                        'text': "+1w",
-                        'data': '{}:{}'.format(reminder['id'], SNOOZE_REMINDER_WEEK),
-                    },
-                ],
-            ]
+            )
         else:
             reminder['active'] = False
-            buttons = [
-                [{
-                    'text': 'Got it!',
-                    'data': '{}:{}'.format(reminder['id'], REMOVE_BUTTONS),
-                }],
-                [
-                    {
-                        'text': "+1h",
-                        'data': '{}:{}'.format(reminder['id'], SNOOZE_REMINDER_HOUR),
-                    },
-                    {
-                        'text': "+1d",
-                        'data': '{}:{}'.format(reminder['id'], SNOOZE_REMINDER_DAY),
-                    },
-                    {
-                        'text': "+1w",
-                        'data': '{}:{}'.format(reminder['id'], SNOOZE_REMINDER_WEEK),
-                    },
-                ]
-            ]
+
+        buttons.append([
+            {
+                'text': snooze['button'],
+                'data': '{}:{}'.format(reminder['id'], snooze_type),
+            } for snooze_type, snooze in SNOOZE_REMINDERS.items()
+        ])
+
         send({
             'message': msg,
             'buttons': buttons,

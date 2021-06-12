@@ -7,6 +7,7 @@ key = "gro"
 name = "Grocery Lists"
 
 REMOVE_ITEM = 'rm'
+UPDATE_LIST = 'up'
 
 params = {}
 
@@ -44,16 +45,22 @@ def matches_message(message):
 
 
 def handle(message, **kwargs):
-    if kwargs['permission'] < PERM_ADMIN:
-        return "Sorry, you don't get to see the shopping list."
     db = kwargs['db']
     l = message.lower()
     for list_type in params['lists']:
         for prefix in list_type['add_prefices']:
             if l.startswith(prefix):
-                return add_item(message[len(prefix):], db, list_type['name'])
+                if ('users' in list_type and str(kwargs['actor_id']) in list_type['users']) \
+                    or ('users' not in list_type and kwargs['permission'] >= PERM_ADMIN):
+                    return add_item(message[len(prefix):], db, list_type['name'])
+                else:
+                    return "Sorry, you don't get to add to this list."
         if any([l.startswith(prefix) for prefix in list_type['show_prefices']]):
-            return grocery_list(db, list_type['name'])
+            if ('users' in list_type and str(kwargs['actor_id']) in list_type['users']) \
+                or ('users' not in list_type and kwargs['permission'] >= PERM_ADMIN):
+                return grocery_list(db, list_type['name'])
+            else:
+                return "Sorry, you don't get to see this list."
     return "Whoopsie, this never happens"
 
 
@@ -75,6 +82,14 @@ def handle_button(data, **kwargs):
                 'message': msg,
             }
         msg['answer'] = "You bought {}".format(item['name'])
+        return msg
+    if cmd == UPDATE_LIST:
+        msg = grocery_list(db, parts[1])
+        if not isinstance(msg, dict):
+            msg = {
+                'message': msg,
+            }
+        msg['answer'] = "Updated."
         return msg
     return "Uh oh, something is off"
 
@@ -102,10 +117,17 @@ def grocery_list(db, list_type):
             'data': '{}:{}'.format(REMOVE_ITEM, item['id'])
         }])
 
-    if not buttons:
-        return "Your {} list is empty.".format(list_type)
+    buttons.append([{
+            'text': "update list",
+            'data': '{}:{}'.format(UPDATE_LIST, list_type)
+    }])
+
+    if len(buttons) <= 1:
+        msg = "Your {} list is empty.".format(list_type)
+    else:
+        msg = "Your {} list:".format(list_type)
     return {
-        'message': "Your {} list:".format(list_type),
+        'message': msg,
         'buttons': buttons,
     }
 
