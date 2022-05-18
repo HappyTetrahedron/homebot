@@ -46,7 +46,7 @@ SNOOZE_REMINDERS = {
     SNOOZE_REMINDER_DAY: {
         'button': "+1d",
         'amount': "1 day",
-        'delta': datetime.timedelta(days=4),
+        'delta': datetime.timedelta(days=1),
     },
     SNOOZE_REMINDER_WEEK: {
         'button': "+1w",
