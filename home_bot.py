@@ -19,6 +19,8 @@ import weather_handler
 import trains_handler
 import pc_handler
 import cavs_handler
+import webcam_handler
+import dice_handler
 
 from utils import get_affirmation, get_generic_response
 from utils import PERMISSIONS, PERM_ADMIN, PERM_OWNER, PERM_USER
@@ -38,6 +40,8 @@ HANDLERS = {
     trains_handler.key: trains_handler,
     pc_handler.key: pc_handler,
     cavs_handler.key: cavs_handler,
+    webcam_handler.key: webcam_handler,
+    dice_handler.key: dice_handler,
 }
 
 
@@ -172,7 +176,7 @@ class PollBot:
                                              permission=permission
                                              )
         if isinstance(answer, dict):
-            if 'message' in answer:
+            if 'message' in answer or 'photo' in answer:
                 buttons = None
                 if 'buttons' in answer:
                     buttons = self.assemble_inline_buttons(answer['buttons'], key)
@@ -183,7 +187,7 @@ class PollBot:
                         reply_markup=buttons,
                         media=InputMediaPhoto(
                             open(answer['photo'], 'rb'),
-                            caption=answer.get('message'),
+                            caption=answer.get('message', None),
                             parse_mode=answer.get('parse_mode')
                         )
                     )
@@ -233,10 +237,12 @@ class PollBot:
         update.message.reply_text(helptext, parse_mode="Markdown")
 
     # Error handler
-    @staticmethod
-    def handle_error(update, context):
+    def handle_error(self, update, context):
         """Log Errors caused by Updates."""
         logger.warning('Update "%s" caused error "%s"', update, context.error)
+        if self.config['debug']:
+            import traceback
+            traceback.print_exception(context.error)
 
     def run(self, opts):
         with open(opts.config, 'r') as configfile:

@@ -25,6 +25,15 @@ AFFIRMATIONS = [
     "Splendid",
 ]
 
+EXCLAMATIONS = [
+    "Oh no!",
+    "Yikes!",
+    "Aww...",
+    "Damn...",
+    "Aw no!",
+    ">.<",
+]
+
 GENERIC_RESPONSES = [
     "I see.",
     "Oh yeah.",
@@ -36,12 +45,15 @@ GENERIC_RESPONSES = [
     "Really?",
     "Tell me more about that",
     "and then what happened?",
+    "Oh, can you repeat that?",
 ]
 
 
 def get_affirmation():
     return random.choice(AFFIRMATIONS)
 
+def get_exclamation():
+    return random.choice(EXCLAMATIONS)
 
 def get_generic_response():
     return random.choice(GENERIC_RESPONSES)
