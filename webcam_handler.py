@@ -25,7 +25,7 @@ def matches_message(message):
 def help(permission):
     if not params['enabled']:
         return
-    if permission >= PERM_OWNER:
+    if permission >= PERM_ADMIN:
         return {
             'summary': "Shows you snapshots from your webcam feeds",
             'examples': ["show living room"],
