@@ -21,6 +21,7 @@ import pc_handler
 import cavs_handler
 import webcam_handler
 import dice_handler
+import buttonhub_handler
 
 from utils import get_affirmation, get_generic_response
 from utils import PERMISSIONS, PERM_ADMIN, PERM_OWNER, PERM_USER
@@ -42,6 +43,7 @@ HANDLERS = {
     cavs_handler.key: cavs_handler,
     webcam_handler.key: webcam_handler,
     dice_handler.key: dice_handler,
+    buttonhub_handler.key: buttonhub_handler,
 }
 
 
