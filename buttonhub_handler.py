@@ -7,6 +7,7 @@ import requests
 from utils import PERM_ADMIN
 
 key = "buttonhub"
+name = "Buttonhub"
 
 RUN_FLOW_REGEX = re.compile('^(?:run )?flow ([a-z0-9-]+)', flags=re.I)
 
