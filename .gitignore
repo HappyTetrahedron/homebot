@@ -1,7 +1,7 @@
 __pycache__
 .idea
 *.swp
-*.db
+*.db*
 venv
 venv*
 
