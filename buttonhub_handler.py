@@ -90,9 +90,11 @@ def prompt_flows():
         flows = response.json()['flows']
         buttons = []
         for flow in flows:
+            if flow['hidden']:
+                continue
             buttons.append([{
-                'text': flow,
-                'data': '{}:{}'.format(TRIGGER_FLOW, flow)
+                'text': flow['label'],
+                'data': '{}:{}'.format(TRIGGER_FLOW, flow['name'])
             }])
         return {
             'message': "Which flow would you like to trigger?",
