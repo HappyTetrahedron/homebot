@@ -52,22 +52,22 @@ def handle(message, **kwargs):
 
 
 def handle_button(data, **kwargs):
-    parts = data.split('::')
+    parts = data.split(':')
     cmd = parts[0]
 
     if cmd == TRIGGER_FLOW:
-        return trigger_flow(parts[1], parts[2])
+        return trigger_flow(parts[1])
 
     return "Uh oh, something is off"
 
 
-def trigger_flow(flow_name, flow_label):
+def trigger_flow(flow_name):
     url = '{}/flows/{}'.format(params['base_url'], flow_name)
     try:
         response = requests.post(url, timeout=5)
         response.raise_for_status()
         return {
-            'message': 'Flow "{}" triggered'.format(flow_label),
+            'message': 'Flow {} triggered'.format(flow_name),
             'answer': get_affirmation(),
         }
     except HTTPError as e:
@@ -94,7 +94,7 @@ def prompt_flows():
                 continue
             buttons.append([{
                 'text': flow['label'],
-                'data': '{}::{}::{}'.format(TRIGGER_FLOW, flow['name'], flow['label'])
+                'data': '{}:{}'.format(TRIGGER_FLOW, flow['name'])
             }])
         return {
             'message': "Which flow would you like to trigger?",
