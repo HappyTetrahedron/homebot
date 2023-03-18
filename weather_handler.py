@@ -15,16 +15,15 @@ name = "Weather Forecast"
 
 logger = logging.getLogger(__name__)
 
-JSON_PATH_REGEX = re.compile('data-forecast-json-url="(.+)"')
-VERSION_TIMESTAMP_REGEX = re.compile('data-forecast-json-url=".*/version__(.+?)/.*"')
-
 params = {}
 
 METEO_JSON_URL = "https://www.meteoswiss.admin.ch{}"
 METEO_PAGE_URL = "https://www.meteoswiss.admin.ch/home.html?tab=overview"
 
+METEO_VERSIONS_URL = "https://www.meteoswiss.admin.ch/product/output/versions.json"
+
 METEO_FORECAST_URL = "https://www.meteoswiss.admin.ch/product/output/forecast-chart/version__{}/en/{}.json"
-METEO_SEARCH_URL = "https://www.meteoswiss.admin.ch/etc/designs/meteoswiss/ajax/search/{}.json"
+METEO_SEARCH_URL = "https://www.meteoswiss.admin.ch/static/product/resources/local-forecast-search/{}.json"
 
 METEO_API_HEADERS = {"referer": "https://www.meteoswiss.admin.ch/home.html?tab=overview"}
 
@@ -121,16 +120,14 @@ def handle_button(data, **kwargs):
 
 
 def get_weather_data(zip, city_name, for_tomorrow):
-    result = requests.get(METEO_PAGE_URL, timeout=7)
-    match = VERSION_TIMESTAMP_REGEX.search(result.text)
-    if not match:
-        return "There appears to be an issue with the Meteo page parsing"
+    result = requests.get(METEO_VERSIONS_URL, timeout=7).json()
 
-    version_timestamp = match.groups()[0]
+    version_timestamp = result["forecast-chart"]
 
     json_url = METEO_FORECAST_URL.format(version_timestamp, zip)
 
-    weather_data = json.loads(requests.get(json_url, headers=METEO_API_HEADERS, timeout=7).text)
+    weather_data = json.loads(requests.get(
+        json_url, headers=METEO_API_HEADERS, timeout=7).text)
 
     if for_tomorrow:
         tomorrow = datetime.datetime.now() + datetime.timedelta(days=1)

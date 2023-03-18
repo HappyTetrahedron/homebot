@@ -94,7 +94,7 @@ def generate_plot(weather_data, starttime=None):
     times = [ int(row[0]/1000) for k in [0, 1, 2] for row in j[k].get("temperature") ]
 
     # Extract icon information
-    icons = [ {"time":row.get("timestamp")/1000, "icon":weathericons[row.get("weather_symbol_id")]} for k in [0,1] for row in j[k].get("symbols") ]
+    icons = [ {"time":row.get("timestamp")/1000, "icon":weathericons[row.get("weather_symbol_id")]} for k in [0,1,2] for row in j[k].get("symbols") ]
 
     # current time as reported by json, in seconds
     now = j[0].get("current_time") / 1000

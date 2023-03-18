@@ -214,6 +214,7 @@ def create_periodic_reminder(time_string, subject, separator_word, actor_id):
     if not interval:
         interval = 1
 
+    contains_date = None
     if rest:
         contains_date = rest
     elif part_before:
