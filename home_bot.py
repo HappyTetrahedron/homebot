@@ -11,18 +11,18 @@ from telegram.error import BadRequest
 import webserver
 import dataset
 
-import inventory_handler
-import reminder_handler
-import hue_handler
+# import inventory_handler
+# import reminder_handler
+# import hue_handler
 import grocery_handler
-import weather_handler
-import trains_handler
-import pc_handler
+# import weather_handler
+# import trains_handler
+# import pc_handler
 import cavs_handler
-import webcam_handler
+# import webcam_handler
 import dice_handler
 import buttonhub_handler
-import list_preset_handler
+# import list_preset_handler
 
 from utils import get_affirmation, get_generic_response
 from utils import PERMISSIONS, PERM_ADMIN, PERM_OWNER, PERM_USER
@@ -33,29 +33,21 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-HANDLERS = {
-    inventory_handler.key: inventory_handler,
-    reminder_handler.key: reminder_handler,
-    hue_handler.key: hue_handler,
-    grocery_handler.key: grocery_handler,
-    weather_handler.key: weather_handler,
-    trains_handler.key: trains_handler,
-    pc_handler.key: pc_handler,
-    cavs_handler.key: cavs_handler,
-    webcam_handler.key: webcam_handler,
-    dice_handler.key: dice_handler,
-    buttonhub_handler.key: buttonhub_handler,
-    list_preset_handler.key: list_preset_handler,
-}
+HANDLER_CLASSES = [
+    grocery_handler.GroceryHandler,
+    cavs_handler.CavsHandler,
+    dice_handler.DiceHandler,
+    buttonhub_handler.ButtonhubHandler,
+]
 
-
-class PollBot:
+class HomeBot:
     def __init__(self):
         self.db = None
         self.periodic_db = None
         self.config = None
         self.bot = None
         self.exit = threading.Event()
+        self.handlers = []
 
     def get_permissions(self, user_id):
         permission = None
@@ -140,7 +132,8 @@ class PollBot:
         if permission not in PERMISSIONS:
             update.message.reply_text("You're not my master. I won't talk to you!")
             return
-        for key, handler in HANDLERS.items():
+        for handler in self.handlers:
+            key = handler.key
             if update.message.text is not None:
                 if handler.matches_message(update.message.text):
                     reply = handler.handle(update.message.text,
@@ -169,52 +162,52 @@ class PollBot:
 
         key = data[0]
         payload = data[1]
-        if key not in HANDLERS:
-            query.answer("Something's wrong with this button.")
-            return
 
-        answer = HANDLERS[key].handle_button(payload,
-                                             db=self.db,
-                                             message_id=query.message.message_id,
-                                             actor_id=query.message.chat.id,
-                                             permission=permission
-                                             )
-        if isinstance(answer, dict):
-            if 'message' in answer or 'photo' in answer:
-                buttons = None
-                if 'buttons' in answer:
-                    buttons = self.assemble_inline_buttons(answer['buttons'], key)
-                if 'photo' in answer:
-                    context.bot.edit_message_media(
-                        chat_id=query.message.chat.id,
-                        message_id=query.message.message_id,
-                        reply_markup=buttons,
-                        media=InputMediaPhoto(
-                            open(answer['photo'], 'rb'),
-                            caption=answer.get('message', None),
-                            parse_mode=answer.get('parse_mode')
-                        )
-                    )
-                else:
-                    try:
-                        context.bot.edit_message_text(
-                            text=answer['message'],
-                            reply_markup=buttons,
+        for handler in self.handlers:
+            if handler.key == key:
+                answer = handler.handle_button(
+                    payload,
+                    db=self.db,
+                    message_id=query.message.message_id,
+                    actor_id=query.message.chat.id,
+                    permission=permission
+                )
+            if isinstance(answer, dict):
+                if 'message' in answer or 'photo' in answer:
+                    buttons = None
+                    if 'buttons' in answer:
+                        buttons = self.assemble_inline_buttons(answer['buttons'], key)
+                    if 'photo' in answer:
+                        context.bot.edit_message_media(
                             chat_id=query.message.chat.id,
                             message_id=query.message.message_id,
-                            parse_mode=answer.get('parse_mode')
+                            reply_markup=buttons,
+                            media=InputMediaPhoto(
+                                open(answer['photo'], 'rb'),
+                                caption=answer.get('message', None),
+                                parse_mode=answer.get('parse_mode')
+                            )
                         )
-                    except BadRequest as err: # Ignore "message is not modified"
-                        if "Message is not modified" not in err.message:
-                            raise err
-            if 'delete' in answer and answer['delete']:
-                context.bot.delete_message(
-                    chat_id=query.message.chat.id,
-                    message_id=query.message.message_id
-                )
-            query.answer(answer['answer'])
-        else:
-            query.answer(answer)
+                    else:
+                        try:
+                            context.bot.edit_message_text(
+                                text=answer['message'],
+                                reply_markup=buttons,
+                                chat_id=query.message.chat.id,
+                                message_id=query.message.message_id,
+                                parse_mode=answer.get('parse_mode')
+                            )
+                        except BadRequest as err: # Ignore "message is not modified"
+                            if "Message is not modified" not in err.message:
+                                raise err
+                if 'delete' in answer and answer['delete']:
+                    context.bot.delete_message(
+                        chat_id=query.message.chat.id,
+                        message_id=query.message.message_id
+                    )
+                query.answer(answer['answer'])
+            else:
+                query.answer(answer)
 
     # Help command handler
     def handle_help(self, update, context):
@@ -229,7 +222,7 @@ class PollBot:
             return
 
         helptext = "I am HappyTetrahedron's personal butler.\n\n"
-        for handler in HANDLERS.values():
+        for handler in self.handlers:
             handler_help = handler.help(permission)
             if handler_help:
                 helptext += "*{}:*\n".format(handler.name)
@@ -266,8 +259,9 @@ class PollBot:
         self.bot = updater.bot
 
         """Set up handlers"""
-        for handler in HANDLERS.values():
-            handler.setup(self.config, self.send_message)
+        for handler_class in HANDLER_CLASSES:
+            handler = handler_class(self.config, self)
+            self.handlers.append(handler)
 
         t = threading.Thread(target=self.scheduler_run)
         t.start()
@@ -294,12 +288,12 @@ class PollBot:
 
         self.exit.set()
 
-        for handler in HANDLERS.values():
+        for handler in self.handlers:
             handler.teardown()
 
     def scheduler_run(self):
         while not self.exit.is_set():
-            for handler in HANDLERS.values():
+            for handler in self.handlers:
                 try:
                     handler.run_periodically(self.periodic_db)
                 except Exception as e:
@@ -315,7 +309,7 @@ class PollBot:
 
 
 def main(opts):
-    PollBot().run(opts)
+    HomeBot().run(opts)
 
 
 if __name__ == '__main__':
