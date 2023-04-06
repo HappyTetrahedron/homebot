@@ -83,11 +83,13 @@ def initial_list_choice():
     return {
         'message': "All right, which list would you like to prep?",
         'buttons': buttons,
+        'answer': get_affirmation(),
     }
 
 
-def process_list(list_name, choices, db, finalize=False):
-    list_preset = get_preset(list_name)
+def process_list(preset_name, choices, db, finalize=False):
+    list_preset = get_preset(preset_name)
+    list_name = list_preset["listname"]
     if not list_preset:
         return "Whoa, something went wrong here"
 
@@ -117,7 +119,7 @@ def process_list(list_name, choices, db, finalize=False):
         if finalize:
             return store_list(list_name, result, db)
         else:
-            return confirm_list(list_name, result, choices)
+            return confirm_list(list_name, preset_name, result, choices)
     else:
         buttons = []
         for index, option in enumerate(result['answers']):
@@ -125,7 +127,7 @@ def process_list(list_name, choices, db, finalize=False):
                 'text': option['prompt'],
                 'data': '{}:{}:{}{}'.format(
                     LIST_FLOW,
-                    list_name,
+                    preset_name,
                     choices,
                     index
                 ),
@@ -135,7 +137,7 @@ def process_list(list_name, choices, db, finalize=False):
             'text': "Back",
             'data': '{}:{}:{}'.format(
                 LIST_FLOW if choices else INITIAL,
-                list_name,
+                preset_name,
                 choices[:-1]
             ),
         }])
@@ -152,7 +154,7 @@ def process_list(list_name, choices, db, finalize=False):
         }
 
 
-def confirm_list(list_name, list_items, choices):
+def confirm_list(list_name, preset_name, list_items, choices):
     message = "The following items will be added to your {} list:\n\n".format(list_name)
 
     for item in list_items:
@@ -161,13 +163,13 @@ def confirm_list(list_name, list_items, choices):
     buttons = [
         [{
             'text': "Confirm",
-            'data': '{}:{}:{}'.format(FINALIZE, list_name, choices),
+            'data': '{}:{}:{}'.format(FINALIZE, preset_name, choices),
         }],
         [{
             'text': "Back",
             'data': '{}:{}:{}'.format(
                 LIST_FLOW if choices else INITIAL,
-                list_name,
+                preset_name,
                 choices[:-1]
             ),
         }],
