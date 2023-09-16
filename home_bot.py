@@ -23,6 +23,7 @@ import webcam_handler
 import dice_handler
 import buttonhub_handler
 import list_preset_handler
+import wekan_handler
 
 from utils import get_affirmation, get_generic_response
 from utils import PERMISSIONS, PERM_ADMIN, PERM_OWNER, PERM_USER
@@ -46,6 +47,7 @@ HANDLERS = {
     dice_handler.key: dice_handler,
     buttonhub_handler.key: buttonhub_handler,
     list_preset_handler.key: list_preset_handler,
+    wekan_handler.key: wekan_handler,
 }
 
 

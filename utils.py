@@ -32,6 +32,7 @@ EXCLAMATIONS = [
     "Damn...",
     "Aw no!",
     ">.<",
+    "Whoopsie!",
 ]
 
 GENERIC_RESPONSES = [
