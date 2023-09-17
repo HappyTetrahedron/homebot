@@ -326,8 +326,12 @@ def shorthand_to_card(shorthand):
 
 
 def shorthand_to_lists(shorthand):
+    if len(shorthand) == 1 and shorthand[0] == '':
+        return []
     return [params['config']['source_lists'][int(l)]['id'] for l in shorthand]
 
 
 def shorthand_to_lanes(shorthand):
+    if len(shorthand) == 1 and shorthand[0] == '':
+        return []
     return [params['config']['lanes'][int(l)]['id'] for l in shorthand]
