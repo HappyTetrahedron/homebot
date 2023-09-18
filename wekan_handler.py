@@ -2,10 +2,12 @@ from base_handler import *
 import requests
 from dateutil import parser
 import datetime
+import logging
 from utils import PERM_ADMIN
 from utils import get_exclamation
 from utils import get_affirmation
 
+logger = logging.getLogger(__name__)
 
 key = "wekan"
 name = "wekan"
@@ -27,6 +29,8 @@ def matches_message(message):
         return True
     if message.lower().startswith('do '):
         return True
+    if message.lower().startswith('toggle task report'):
+        return True
     return False
 
 
@@ -41,11 +45,14 @@ def help(permission):
                 "{} cards".format(params['config']['source_lists'][0]['names'][0]),
                 "{} cards".format(params['config']['lanes'][0]['names'][0]),
                 "do this very important task",
+                "toggle task report",
                 ],
         }
 
 
 def setup(config, send_message):
+    params['debug'] = config['debug']
+    params['sendmsg'] = send_message
     if 'wekan' in config:
         params['config'] = config['wekan']
         params['enabled'] = True
@@ -59,6 +66,8 @@ def handle(message, **kwargs):
     if message.lower().startswith('do '):
         task = message[3:]
         return create_card(kwargs['actor_id'], task)
+    if message.lower().startswith('toggle task report'):
+        return toggle_report(kwargs['actor_id'], kwargs['db'])
     elif message.lower().endswith(' cards'):
         l = message[:-6].lower()
         lanes = []
@@ -91,9 +100,8 @@ def handle_button(data, **kwargs):
         args = data[1].split(':')
         lists = shorthand_to_lists(args[0].split(','))
         lanes = shorthand_to_lanes(args[1].split(','))
-        resp = {}
+        resp = get_card_text(kwargs['actor_id'], lists, lanes)
         resp['answer'] = get_affirmation()
-        resp['message'] = get_card_text(kwargs['actor_id'], lists, lanes)
         return resp
 
     if cmd == UPDATE:
@@ -153,7 +161,13 @@ def get_card_text(telegram_user, lists, lanes):
     if isinstance(cards, str):
         return cards
 
-    msg = '\n'.join([ '\n'.join([c['title'] for c in subcards]) for subcards in cards.values() ])
+    msg = {
+        'message': '\n'.join([ '\n'.join([c['title'] for c in subcards]) for subcards in cards.values() ]),
+        'buttons': [[{
+            'text': "Expand",
+            'data': '{}:{}:{}'.format(UPDATE, ','.join(lists_to_shorthand(lists)), ','.join(lanes_to_shorthand(lanes))),
+        }]],
+    }
     return msg
 
 def get_card_buttons(telegram_user, lists, lanes):
@@ -165,15 +179,15 @@ def get_card_buttons(telegram_user, lists, lanes):
         for card in cardlist:
             buttons.append([{
                 'text': card['title'],
-                'data': '{}:{}:{}:{}'.format(MARK_DONE, card_to_shorthand(card['_id'], li), ','.join(lists_to_shorthand(lists)), ','.join(lanes_to_shorthand(lanes)))
+                'data': '{}:{}:{}:{}'.format(MARK_DONE, card_to_shorthand(card['_id'], li), ','.join(lists_to_shorthand(lists)), ','.join(lanes_to_shorthand(lanes))),
             }])
     buttons.append([{
-            'text': "Update",
-            'data': '{}:{}:{}'.format(UPDATE, ','.join(lists_to_shorthand(lists)), ','.join(lanes_to_shorthand(lanes)))
+            'text': "Update cards.",
+            'data': '{}:{}:{}'.format(UPDATE, ','.join(lists_to_shorthand(lists)), ','.join(lanes_to_shorthand(lanes))),
     }])
     buttons.append([{
             'text': "I'm done.",
-            'data': '{}:{}:{}'.format(DISMISS_LIST, ','.join(lists_to_shorthand(lists)), ','.join(lanes_to_shorthand(lanes)))
+            'data': '{}:{}:{}'.format(DISMISS_LIST, ','.join(lists_to_shorthand(lists)), ','.join(lanes_to_shorthand(lanes))),
     }])
 
     return {
@@ -281,6 +295,26 @@ def call_api(path, payload=None, method='GET'):
     return data
 
 
+def toggle_report(actor, db):
+    table = db['wekan']
+    entry = table.find_one(actor=actor)
+    if not entry:
+        entry= {
+            'actor': actor,
+            'enabled': True,
+            'next_message': get_next_reminder_date(),
+        }
+        table.insert(entry)
+    else:
+        entry['enabled'] = not entry['enabled']
+        entry['next_message'] = get_next_reminder_date(),
+        table.update(entry, ['actor'])
+
+    if entry['enabled']:
+        return "You will receive daily task reports."
+    return "You will no longer receive task reports."
+
+
 def token_valid(): 
     return 'token_expires' in params and params['token_expires'] > datetime.datetime.now().astimezone()
 
@@ -335,3 +369,45 @@ def shorthand_to_lanes(shorthand):
     if len(shorthand) == 1 and shorthand[0] == '':
         return []
     return [params['config']['lanes'][int(l)]['id'] for l in shorthand]
+
+
+def get_next_reminder_date():
+    tomorrow = datetime.datetime.now() + datetime.timedelta(days=1)
+    tomorrowMorning = datetime.datetime(year=tomorrow.year, month=tomorrow.month, day=tomorrow.day, hour=7)
+    return tomorrowMorning
+
+
+def run_periodically(db):
+    debug = params['debug']
+    table = db['wekan']
+    send = params['sendmsg']
+    if debug:
+        logger.info("Querying wekan reports...")
+
+    now = datetime.datetime.now()
+    reminders = db.query('SELECT * FROM wekan WHERE enabled IS TRUE AND next_message < :now', now=now)
+
+    count = 0
+    for reminder in reminders:
+        count += 1
+        if debug:
+            logger.info("Sending wekan report {}".format(count))
+        # this is so stupid I can't even
+        # dataset returns dates as string but only accepts them as datetime
+        reminder['next_message'] = datetime.datetime.strptime(reminder['next_message'], '%Y-%m-%d %H:%M:%S.%f')
+
+        lists = [l['id'] for l in params['config']['source_lists']]
+        msg = get_card_text(reminder['actor'], lists, [])
+        msg['message'] = "Here is your daily task report:\n\n" + msg['message']
+
+        send(msg, key=key, recipient_id=reminder['actor'] if 'actor' in reminder else None)
+
+        reminder['next_message'] = get_next_reminder_date()
+
+        if debug:
+            logger.info("Updating report {}".format(count))
+        table.update(reminder, ['actor'])
+        if debug:
+            logger.info("Finished report {}".format(count))
+    if debug:
+        logger.info("Sent out {} reports".format(count))
