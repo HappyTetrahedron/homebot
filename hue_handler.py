@@ -5,9 +5,6 @@ import hue
 import requests
 from utils import get_affirmation, PERM_ADMIN
 
-key = "hue"
-name = "Light Control"
-
 TURN_ON_X_PATTERN = re.compile("^turn\s+(on|off)\s+(?:lights?\s+)?(?:in\s+)?(?:the\s+)?(.+?)(?:\s+lights?)?$",
                                flags=re.I)
 
@@ -88,163 +85,163 @@ COLORS = {
     'white': '#FFFFFF',
 }
 
-params = {}
+class HueHandler(BaseHandler):
+
+    def __init__(self, config, messenger):
+        super().__init__(config, messenger, "hue", "Light Control")
+        if 'hue' in config:
+            self.hue = hue.Hue(config['hue'])
+            self.rooms = config['hue_rooms']
+            self.enabled = True
+        else:
+            self.enabled = False
 
 
-def setup(config, send_message):
-    if 'hue' in config:
-        params['hue'] = hue.Hue(config['hue'])
-        params['rooms'] = config['hue_rooms']
-        params['enabled'] = True
-    else:
-        params['enabled'] = False
+    def help(self, permission):
+        if not self.enabled:
+            return
+        if permission >= PERM_ADMIN:
+            example_room = next(iter(self.rooms.keys()))
+            all_rooms = "Available rooms:\n"
+            for room in self.rooms.keys():
+                all_rooms += "- {}\n".format(room)
+            return {
+                'summary': "Controls your Philips Hue lights",
+                'examples': ["turn lights on", "turn {} off".format(example_room), "activate <scene>", "set lights to pink"],
+                'extended': all_rooms,
+            }
 
 
-def help(permission):
-    if not params['enabled']:
-        return
-    if permission >= PERM_ADMIN:
-        example_room = next(iter(params['rooms'].keys()))
-        all_rooms = "Available rooms:\n"
-        for room in params['rooms'].keys():
-            all_rooms += "- {}\n".format(room)
+    def matches_message(self, message):
+        if not self.enabled:
+            return False
+        return IS_X_ON_PATTERN.match(message) \
+               or TURN_X_ON_PATTERN.match(message) \
+               or TURN_ON_X_PATTERN.match(message) \
+               or SET_X_TO_PATTERN.match(message) \
+               or message.lower().startswith("activate ")
+
+
+    def handle(self, message, **kwargs):
+        if kwargs['permission'] < PERM_ADMIN:
+            return "Sorry, I can't mess with the lights for you."
+        try:
+            match = IS_X_ON_PATTERN.match(message)
+            if match:
+                return self.is_on(match)
+            match = TURN_ON_X_PATTERN.match(message)
+            if match:
+                groups = match.groups()
+                return self.turn_onoff(groups[1], groups[0])
+            match = TURN_X_ON_PATTERN.match(message)
+            if match:
+                groups = match.groups()
+                return self.turn_onoff(groups[0], groups[1])
+            match = SET_X_TO_PATTERN.match(message)
+            if match:
+                return self.set_to(match)
+            if message.lower().startswith("activate "):
+                return self.activate(message[9:])
+        except requests.exceptions.ConnectTimeout:
+            return {
+                'message': TIMEOUT_MESSAGE,
+                'buttons': [[{
+                    'text': "Try again!",
+                    'data': "{}:{}".format(TRY_AGAIN, message)
+            }]],
+            }
+
+
+    def handle_button(self, data, **kwargs):
+        parts = data.split(':', 2)
+        cmd = parts[0]
+        if cmd == TRY_AGAIN:
+            msg = self.handle(parts[1])
+            if msg['message'] == TIMEOUT_MESSAGE:
+                return "It still doesn't work"
+            msg['answer'] = get_affirmation()
+            return msg
+        msg = self.turn_onoff(parts[1], parts[0])
         return {
-            'summary': "Controls your Philips Hue lights",
-            'examples': ["turn lights on", "turn {} off".format(example_room), "activate <scene>", "set lights to pink"],
-            'extended': all_rooms,
+            'answer': msg,
+            'message': msg,
         }
 
 
-def matches_message(message):
-    if not params['enabled']:
-        return False
-    return IS_X_ON_PATTERN.match(message) \
-           or TURN_X_ON_PATTERN.match(message) \
-           or TURN_ON_X_PATTERN.match(message) \
-           or SET_X_TO_PATTERN.match(message) \
-           or message.lower().startswith("activate ")
+    def set_to(self, match):
+        groups = match.groups()
+        room = groups[0]
+        scene = groups[1]
+        hue = self.hue
+
+        hue_scene = hue.get_scene_info(scene)
+        if scene.lower() in COLORS.keys():
+            group = self.get_group_from_room(room)
+            if group == -1:
+                return "Sorry, I couldn't find a room named \"{}\"".format(room)
+            col = COLORS[scene.lower()]
+            huecol = hue.rgb_to_huecol(col)
+            hue.turn_on_group(group)
+            hue.set_group_to_color_hsb(group, huecol)
+            return "{} set to {}.".format(room, scene)
+        if hue_scene:
+            hue.activate_scene(hue_scene['group'], hue_scene['key'])
+            return "Scene {} activated.".format(hue_scene['scene'])
+        return "Sorry, I don't know what you mean by \"{}\"".format(scene)
 
 
-def handle(message, **kwargs):
-    if kwargs['permission'] < PERM_ADMIN:
-        return "Sorry, I can't mess with the lights for you."
-    try:
-        match = IS_X_ON_PATTERN.match(message)
-        if match:
-            return is_on(match)
-        match = TURN_ON_X_PATTERN.match(message)
-        if match:
-            groups = match.groups()
-            return turn_onoff(groups[1], groups[0])
-        match = TURN_X_ON_PATTERN.match(message)
-        if match:
-            groups = match.groups()
-            return turn_onoff(groups[0], groups[1])
-        match = SET_X_TO_PATTERN.match(message)
-        if match:
-            return set_to(match)
-        if message.lower().startswith("activate "):
-            return activate(message[9:])
-    except requests.exceptions.ConnectTimeout:
-        return {
-            'message': TIMEOUT_MESSAGE,
-            'buttons': [[{
-                'text': "Try again!",
-                'data': "{}:{}".format(TRY_AGAIN, message)
-        }]],
-        }
+    def activate(self, scene):
+        hue = self.hue
+        hue_scene = self.hue.get_scene_info(scene)
+
+        if hue_scene:
+            hue.activate_scene(hue_scene['group'], hue_scene['key'])
+            return "Scene {} activated.".format(hue_scene['scene'])
+
+        return "I don't know of a scene named \"{}\"".format(scene)
 
 
-def handle_button(data, **kwargs):
-    parts = data.split(':', 2)
-    cmd = parts[0]
-    if cmd == TRY_AGAIN:
-        msg = handle(parts[1])
-        if msg['message'] == TIMEOUT_MESSAGE:
-            return "It still doesn't work"
-        msg['answer'] = get_affirmation()
-        return msg
-    msg = turn_onoff(parts[1], parts[0])
-    return {
-        'answer': msg,
-        'message': msg,
-    }
-
-
-def set_to(match):
-    groups = match.groups()
-    room = groups[0]
-    scene = groups[1]
-    hue = params['hue']
-
-    hue_scene = hue.get_scene_info(scene)
-    if scene.lower() in COLORS.keys():
-        group = get_group_from_room(room)
+    def is_on(self, match):
+        groups = match.groups()
+        plural = groups[0].lower()
+        room = groups[1]
+        on = groups[2] == 'on'
+        group = self.get_group_from_room(room)
         if group == -1:
-            return "Sorry, I couldn't find a room named \"{}\"".format(room)
-        col = COLORS[scene.lower()]
-        huecol = hue.rgb_to_huecol(col)
-        hue.turn_on_group(group)
-        hue.set_group_to_color_hsb(group, huecol)
-        return "{} set to {}.".format(room, scene)
-    if hue_scene:
-        hue.activate_scene(hue_scene['group'], hue_scene['key'])
-        return "Scene {} activated.".format(hue_scene['scene'])
-    return "Sorry, I don't know what you mean by \"{}\"".format(scene)
+            return "Sorry, I don't know a room named \"{}\"".format(room)
+        ison = self.hue.is_group_on(group)
+        affirm = "Yes" if ison == on else "No"
+        onoff = "on" if ison else "off"
+        msg = "{}, the {} {} {}.".format(affirm, room, plural, onoff)
+        button_text = "Turn {} {}!".format("it" if plural == 'is' else "them", "off" if ison else "on")
+        return {
+            'message': msg,
+            'buttons': [[{
+                'text': button_text,
+                'data': "{}:{}".format(TURN_OFF if ison else TURN_ON, room.lower())
+            }]]
+        }
 
 
-def activate(scene):
-    hue = params['hue']
-    hue_scene = params['hue'].get_scene_info(scene)
-
-    if hue_scene:
-        hue.activate_scene(hue_scene['group'], hue_scene['key'])
-        return "Scene {} activated.".format(hue_scene['scene'])
-
-    return "I don't know of a scene named \"{}\"".format(scene)
-
-
-def is_on(match):
-    groups = match.groups()
-    plural = groups[0].lower()
-    room = groups[1]
-    on = groups[2] == 'on'
-    group = get_group_from_room(room)
-    if group == -1:
-        return "Sorry, I don't know a room named \"{}\"".format(room)
-    ison = params['hue'].is_group_on(group)
-    affirm = "Yes" if ison == on else "No"
-    onoff = "on" if ison else "off"
-    msg = "{}, the {} {} {}.".format(affirm, room, plural, onoff)
-    button_text = "Turn {} {}!".format("it" if plural == 'is' else "them", "off" if ison else "on")
-    return {
-        'message': msg,
-        'buttons': [[{
-            'text': button_text,
-            'data': "{}:{}".format(TURN_OFF if ison else TURN_ON, room.lower())
-        }]]
-    }
+    def turn_onoff(self, room, onoff):
+        on = onoff == 'on'
+        group = self.get_group_from_room(room)
+        plural = 'are' if room.lower() == 'lights' else 'is'
+        if group == -1:
+            return "Sorry, I don't know a room named \"{}\"".format(room)
+        if on:
+            self.hue.turn_on_group(group)
+            return "The {} {} now on.".format(room, plural)
+        else:
+            self.hue.turn_off_group(group)
+            return "The {} {} now off.".format(room, plural)
 
 
-def turn_onoff(room, onoff):
-    on = onoff == 'on'
-    group = get_group_from_room(room)
-    plural = 'are' if room.lower() == 'lights' else 'is'
-    if group == -1:
-        return "Sorry, I don't know a room named \"{}\"".format(room)
-    if on:
-        params['hue'].turn_on_group(group)
-        return "The {} {} now on.".format(room, plural)
-    else:
-        params['hue'].turn_off_group(group)
-        return "The {} {} now off.".format(room, plural)
-
-
-def get_group_from_room(room):
-    if room in ['light', 'lights']:
-        return 0
-    room_mapping = params['rooms']
-    if room.lower() not in room_mapping:
-        return -1
-    return room_mapping[room.lower()]
+    def get_group_from_room(self, room):
+        if room in ['light', 'lights']:
+            return 0
+        room_mapping = self.rooms
+        if room.lower() not in room_mapping:
+            return -1
+        return room_mapping[room.lower()]
 

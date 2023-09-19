@@ -2,6 +2,7 @@ class BaseHandler:
     def __init__(self, config, messenger, key, name):
         self._config = config
         self._messenger = messenger
+        self._debug = config['debug']
         self.key = key
         self.name = name
 

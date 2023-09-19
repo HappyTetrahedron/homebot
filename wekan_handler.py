@@ -9,405 +9,402 @@ from utils import get_affirmation
 
 logger = logging.getLogger(__name__)
 
-key = "wekan"
-name = "wekan"
-
-params = {}
-
 MARK_DONE = 'md'
 DISMISS_LIST = 'rm'
 REMOVE_BUTTONS = 'rd'
 UPDATE = 'up'
 ASSIGN = 'ass'
 
-def matches_message(message):
-    if not params['enabled']:
-        return False
-    if message.lower() == 'cards':
-        return True
-    if message.lower().endswith(' cards'):
-        return True
-    if message.lower().startswith('do '):
-        return True
-    if message.lower().startswith('toggle task report'):
-        return True
-    return False
-
-
-def help(permission):
-    if not params['enabled']:
-        return
-    if permission >= PERM_ADMIN:
-        return {
-            'summary': "Shows you an overview of your wekan board cards.",
-            'examples': [
-                "cards",
-                "{} cards".format(params['config']['source_lists'][0]['names'][0]),
-                "{} cards".format(params['config']['lanes'][0]['names'][0]),
-                "do this very important task",
-                "toggle task report",
-                ],
-        }
-
-
-def setup(config, send_message):
-    params['debug'] = config['debug']
-    params['sendmsg'] = send_message
-    if 'wekan' in config:
-        params['config'] = config['wekan']
-        params['enabled'] = True
-    else:
-        params['enabled'] = False
-
-
-def handle(message, **kwargs):
-    if message.lower() == 'cards':
-        message = ' cards'
-    if message.lower().startswith('do '):
-        task = message[3:]
-        return create_card(kwargs['actor_id'], task)
-    if message.lower().startswith('toggle task report'):
-        return toggle_report(kwargs['actor_id'], kwargs['db'])
-    elif message.lower().endswith(' cards'):
-        l = message[:-6].lower()
-        lanes = []
-        for lane in params['config']['lanes']:
-            for name in lane['names']:
-                if name in l:
-                    lanes.append(lane['id'])
-        lists = []
-        for list_ in params['config']['source_lists']:
-            for name in list_['names']:
-                if name in l:
-                    lists.append(list_['id'])
-        if not lanes and not lists:
-            lanes = [l['id'] for l in params['config']['lanes']]
-            lists = [l['id'] for l in params['config']['source_lists']]
+class WekanHandler(BaseHandler):
     
-        return get_card_buttons(kwargs['actor_id'], lists, lanes)
+    def __init__(self, config, messenger):
+        super().__init__(config, messenger, "wekan", "Wekan Integration")
+        if 'wekan' in config:
+            self.config = config['wekan']
+            self.enabled = True
+            self.token_expires = 0
+        else:
+            self.enabled = False
 
 
-def handle_button(data, **kwargs):
-    data = data.split(':', 1)
-    cmd = data[0]
+    def matches_message(self, message):
+        if not self.enabled:
+            return False
+        if message.lower() == 'cards':
+            return True
+        if message.lower().endswith(' cards'):
+            return True
+        if message.lower().startswith('do '):
+            return True
+        if message.lower().startswith('toggle task report'):
+            return True
+        return False
 
-    if cmd == REMOVE_BUTTONS:
-        return {
-            'message': "{}! I created the new task for you.".format(get_affirmation()),
-            'answer': get_affirmation(),
-        }
-    if cmd == DISMISS_LIST:
-        args = data[1].split(':')
-        lists = shorthand_to_lists(args[0].split(','))
-        lanes = shorthand_to_lanes(args[1].split(','))
-        resp = get_card_text(kwargs['actor_id'], lists, lanes)
-        resp['answer'] = get_affirmation()
-        return resp
 
-    if cmd == UPDATE:
-        args = data[1].split(':')
-        lists = shorthand_to_lists(args[0].split(','))
-        lanes = shorthand_to_lanes(args[1].split(','))
-        resp = get_card_buttons(kwargs['actor_id'], lists, lanes)
-        resp['answer'] = get_affirmation()
-        return resp
-
-    if cmd == MARK_DONE:
-        args = data[1].split(':')
-        lists = shorthand_to_lists(args[1].split(','))
-        lanes = shorthand_to_lanes(args[2].split(','))
-        card_shorthand = args[0]
-        card_id, list_id = shorthand_to_card(card_shorthand)
-
-        payload = {
-            'listId': params['config']['target_list']
-        }
-
-        call_api('boards/{}/lists/{}/cards/{}'.format(params['config']['board'], list_id, card_id), payload, method='PUT')
-
-        resp = get_card_buttons(kwargs['actor_id'], lists, lanes)
-        if isinstance(resp, str):
+    def help(self, permission):
+        if not self.enabled:
+            return
+        if permission >= PERM_ADMIN:
             return {
-                'message': resp,
+                'summary': "Shows you an overview of your wekan board cards.",
+                'examples': [
+                    "cards",
+                    "{} cards".format(self.config['source_lists'][0]['names'][0]),
+                    "{} cards".format(self.config['lanes'][0]['names'][0]),
+                    "do this very important task",
+                    "toggle task report",
+                    ],
+            }
+    
+
+    def handle(self, message, **kwargs):
+        if message.lower() == 'cards':
+            message = ' cards'
+        if message.lower().startswith('do '):
+            task = message[3:]
+            return self.create_card(kwargs['actor_id'], task)
+        if message.lower().startswith('toggle task report'):
+            return self.toggle_report(kwargs['actor_id'], kwargs['db'])
+        elif message.lower().endswith(' cards'):
+            l = message[:-6].lower()
+            lanes = []
+            for lane in self.config['lanes']:
+                for name in lane['names']:
+                    if name in l:
+                        lanes.append(lane['id'])
+            lists = []
+            for list_ in self.config['source_lists']:
+                for name in list_['names']:
+                    if name in l:
+                        lists.append(list_['id'])
+            if not lanes and not lists:
+                lanes = [l['id'] for l in self.config['lanes']]
+                lists = [l['id'] for l in self.config['source_lists']]
+
+            return self.get_card_buttons(kwargs['actor_id'], lists, lanes)
+
+
+    def handle_button(self, data, **kwargs):
+        data = data.split(':', 1)
+        cmd = data[0]
+
+        if cmd == REMOVE_BUTTONS:
+            return {
+                'message': "{}! I created the new task for you.".format(get_affirmation()),
+                'answer': get_affirmation(),
+            }
+        if cmd == DISMISS_LIST:
+            args = data[1].split(':')
+            lists = self.shorthand_to_lists(args[0].split(','))
+            lanes = self.shorthand_to_lanes(args[1].split(','))
+            resp = self.get_card_text(kwargs['actor_id'], lists, lanes)
+            resp['answer'] = get_affirmation()
+            return resp
+
+        if cmd == UPDATE:
+            args = data[1].split(':')
+            lists = self.shorthand_to_lists(args[0].split(','))
+            lanes = self.shorthand_to_lanes(args[1].split(','))
+            resp = self.get_card_buttons(kwargs['actor_id'], lists, lanes)
+            resp['answer'] = get_affirmation()
+            return resp
+
+        if cmd == MARK_DONE:
+            args = data[1].split(':')
+            lists = self.shorthand_to_lists(args[1].split(','))
+            lanes = self.shorthand_to_lanes(args[2].split(','))
+            card_shorthand = args[0]
+            card_id, list_id = self.shorthand_to_card(card_shorthand)
+
+            payload = {
+                'listId': self.config['target_list']
+            }
+
+            self.call_api('boards/{}/lists/{}/cards/{}'.format(self.config['board'], list_id, card_id), payload, method='PUT')
+
+            resp = self.get_card_buttons(kwargs['actor_id'], lists, lanes)
+            if isinstance(resp, str):
+                return {
+                    'message': resp,
+                    'answer': get_affirmation(),
+                }
+
+            resp['answer'] = get_affirmation()
+            return resp
+
+        if cmd == ASSIGN:
+            args = data[1].split(':')
+            user_id = args[0]
+            user = [ u for u in self.config['users'] if u['wekan_id'] == user_id ]
+            if len(user) < 1:
+                user = {}
+            else:
+                user = user[0]
+            card_id, list_id = self.shorthand_to_card(args[1])
+            data = {
+                '_id': card_id,
+                'assignees': [user_id],
+            }
+            r = self.call_api('boards/{}/lists/{}/cards/{}'.format(self.config['board'], list_id, card_id), data, method='PUT')
+            return {
+                'message': "{}! I created the new task for you and assigned it to {}.".format(get_affirmation(), user.get('name', '... someone')),
                 'answer': get_affirmation(),
             }
 
-        resp['answer'] = get_affirmation()
-        return resp
-    
-    if cmd == ASSIGN:
-        args = data[1].split(':')
-        user_id = args[0]
-        user = [ u for u in params['config']['users'] if u['wekan_id'] == user_id ]
-        if len(user) < 1:
-            user = {}
-        else:
-            user = user[0]
-        card_id, list_id = shorthand_to_card(args[1])
-        data = {
-            '_id': card_id,
-            'assignees': [user_id],
+
+
+    def get_card_text(self, telegram_user, lists, lanes):
+        cards = self.get_my_cards(telegram_user, lists, lanes)
+        if isinstance(cards, str):
+            return cards
+
+        msg = {
+            'message': '\n'.join([ '\n'.join([c['title'] for c in subcards]) for subcards in cards.values() ]),
+            'buttons': [[{
+                'text': "Expand",
+                'data': '{}:{}:{}'.format(UPDATE, ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+            }]],
         }
-        r = call_api('boards/{}/lists/{}/cards/{}'.format(params['config']['board'], list_id, card_id), data, method='PUT')
-        return {
-            'message': "{}! I created the new task for you and assigned it to {}.".format(get_affirmation(), user.get('name', '... someone')),
-            'answer': get_affirmation(),
-        }
+        return msg
 
-
-
-def get_card_text(telegram_user, lists, lanes):
-    cards = get_my_cards(telegram_user, lists, lanes)
-    if isinstance(cards, str):
-        return cards
-
-    msg = {
-        'message': '\n'.join([ '\n'.join([c['title'] for c in subcards]) for subcards in cards.values() ]),
-        'buttons': [[{
-            'text': "Expand",
-            'data': '{}:{}:{}'.format(UPDATE, ','.join(lists_to_shorthand(lists)), ','.join(lanes_to_shorthand(lanes))),
-        }]],
-    }
-    return msg
-
-def get_card_buttons(telegram_user, lists, lanes):
-    cards = get_my_cards(telegram_user, lists, lanes)
-    if isinstance(cards, str):
-        return cards
-    buttons = []
-    for li, cardlist in cards.items():
-        for card in cardlist:
-            buttons.append([{
-                'text': card['title'],
-                'data': '{}:{}:{}:{}'.format(MARK_DONE, card_to_shorthand(card['_id'], li), ','.join(lists_to_shorthand(lists)), ','.join(lanes_to_shorthand(lanes))),
-            }])
-    buttons.append([{
-            'text': "Update cards.",
-            'data': '{}:{}:{}'.format(UPDATE, ','.join(lists_to_shorthand(lists)), ','.join(lanes_to_shorthand(lanes))),
-    }])
-    buttons.append([{
-            'text': "I'm done.",
-            'data': '{}:{}:{}'.format(DISMISS_LIST, ','.join(lists_to_shorthand(lists)), ','.join(lanes_to_shorthand(lanes))),
-    }])
-
-    return {
-        'message': "I found the following cards:",
-        'buttons': buttons,
-    }
-
-
-def get_my_cards(telegram_user, lists, lanes):
-    wekan_user = [ u for u in params['config']['users'] if u['telegram_id'] == telegram_user ]
-
-    if len(wekan_user) != 1:
-        return "{} I couldn't associate you with a wekan user.".format(get_exclamation())
-    wekan_user = wekan_user[0]['wekan_id']
-
-    valid_lists_ids = [l['id'] for l in params['config']['source_lists'] ]
-
-    all_lane_cards = {}
-    for la in lanes:
-        lanecards = call_api("boards/{}/swimlanes/{}/cards".format(params['config']['board'], la))
-        lanecards = [c for c in lanecards if len(c['assignees']) == 0 or wekan_user in c['assignees']]
-        for lc in lanecards:
-            if lc['listId'] in valid_lists_ids:
-                if lc['listId'] not in all_lane_cards:
-                    all_lane_cards[lc['listId']] = []
-                
-                all_lane_cards[lc['listId']].append(lc)
-
-    all_list_cards = {}
-    for li in lists:
-        listcards = call_api("boards/{}/lists/{}/cards".format(params['config']['board'], li))
-        listcards = [c for c in listcards if len(c['assignees']) == 0 or wekan_user in c['assignees']]
-        if len(listcards) != 0:
-            all_list_cards[li] = listcards
-    
-    cards = {}
-    if lists and lanes:
-        # both were specified so we will only display cards that match both:
-
-        for listId, cardList in all_list_cards.items():
-            currentList = []
-            for card in cardList:
-                if card['_id'] in [c['_id'] for c in all_lane_cards.get(listId, [])]:
-                    currentList.append(card)
-            if currentList:
-                cards[listId] = currentList
-    
-    if lists and not lanes:
-        cards = all_list_cards
-    if lanes and not lists:
-        cards = all_lane_cards
-    
-    if len(cards) == 0:
-        return "{}! You've got no cards right now.".format(get_affirmation())
-    return cards
-
-def create_card(telegram_user, message):
-    wekan_user = [ u for u in params['config']['users'] if u['telegram_id'] == telegram_user ]
-    if len(wekan_user) != 1:
-        return "{} I couldn't associate you with a wekan user.".format(get_exclamation())
-    wekan_user = wekan_user[0]['wekan_id']
-
-    newcard = {
-        "authorId": wekan_user,
-        "title": message,
-        "swimlaneId": params['config']['default_lane']
-    }
-
-    card = call_api('boards/{}/lists/{}/cards'.format(params['config']['board'], params['config']['default_list']), payload=newcard)
-    buttons = []
-
-    for user in params['config']['users']:
+    def get_card_buttons(self, telegram_user, lists, lanes):
+        cards = self.get_my_cards(telegram_user, lists, lanes)
+        if isinstance(cards, str):
+            return cards
+        buttons = []
+        for li, cardlist in cards.items():
+            for card in cardlist:
+                buttons.append([{
+                    'text': card['title'],
+                    'data': '{}:{}:{}:{}'.format(MARK_DONE, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+                }])
         buttons.append([{
-            'text': 'Assign to {}'.format(user['name']),
-            'data': '{}:{}:{}'.format(ASSIGN, user['wekan_id'], card_to_shorthand(card['_id'], params['config']['default_list']))
+                'text': "Update cards.",
+                'data': '{}:{}:{}'.format(UPDATE, ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
         }])
-    
-    buttons.append([{
-        'text': 'Thanks!',
-        'data': REMOVE_BUTTONS,
-    }])
-    reply = {
-        'message': "{}! I created the new task for you.".format(get_affirmation()),
-        'buttons': buttons,
-    }
-    return reply
+        buttons.append([{
+                'text': "I'm done.",
+                'data': '{}:{}:{}'.format(DISMISS_LIST, ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+        }])
 
-def call_api(path, payload=None, method='GET'):
-    base_url = params['config']['url']
-    if not token_valid():
-        login()
-    headers = {
-        'Authorization': 'Bearer {}'.format(params['token']),
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-    }
-    if payload:
-        if method == 'GET':
-            method = 'POST'
-        data = requests.request(method, "{}/api/{}".format(base_url, path), json=payload, headers=headers)
-        return data.json()
-    else:
-        data = requests.get("{}/api/{}".format(base_url, path), headers=headers)
-        return data.json()
-    return data
-
-
-def toggle_report(actor, db):
-    table = db['wekan']
-    entry = table.find_one(actor=actor)
-    if not entry:
-        entry= {
-            'actor': actor,
-            'enabled': True,
-            'next_message': get_next_reminder_date(),
+        return {
+            'message': "I found the following cards:",
+            'buttons': buttons,
         }
-        table.insert(entry)
-    else:
-        entry['enabled'] = not entry['enabled']
-        entry['next_message'] = get_next_reminder_date(),
-        table.update(entry, ['actor'])
-
-    if entry['enabled']:
-        return "You will receive daily task reports."
-    return "You will no longer receive task reports."
 
 
-def token_valid(): 
-    return 'token_expires' in params and params['token_expires'] > datetime.datetime.now().astimezone()
+    def get_my_cards(self, telegram_user, lists, lanes):
+        wekan_user = [ u for u in self.config['users'] if u['telegram_id'] == telegram_user ]
+
+        if len(wekan_user) != 1:
+            return "{} I couldn't associate you with a wekan user.".format(get_exclamation())
+        wekan_user = wekan_user[0]['wekan_id']
+
+        valid_lists_ids = [l['id'] for l in self.config['source_lists'] ]
+
+        all_lane_cards = {}
+        for la in lanes:
+            lanecards = self.call_api("boards/{}/swimlanes/{}/cards".format(self.config['board'], la))
+            lanecards = [c for c in lanecards if len(c['assignees']) == 0 or wekan_user in c['assignees']]
+            for lc in lanecards:
+                if lc['listId'] in valid_lists_ids:
+                    if lc['listId'] not in all_lane_cards:
+                        all_lane_cards[lc['listId']] = []
+
+                    all_lane_cards[lc['listId']].append(lc)
+
+        all_list_cards = {}
+        for li in lists:
+            listcards = self.call_api("boards/{}/lists/{}/cards".format(self.config['board'], li))
+            listcards = [c for c in listcards if len(c['assignees']) == 0 or wekan_user in c['assignees']]
+            if len(listcards) != 0:
+                all_list_cards[li] = listcards
+
+        cards = {}
+        if lists and lanes:
+            # both were specified so we will only display cards that match both:
+
+            for listId, cardList in all_list_cards.items():
+                currentList = []
+                for card in cardList:
+                    if card['_id'] in [c['_id'] for c in all_lane_cards.get(listId, [])]:
+                        currentList.append(card)
+                if currentList:
+                    cards[listId] = currentList
+
+        if lists and not lanes:
+            cards = all_list_cards
+        if lanes and not lists:
+            cards = all_lane_cards
+
+        if len(cards) == 0:
+            return "{}! You've got no cards right now.".format(get_affirmation())
+        return cards
+
+    def create_card(self, telegram_user, message):
+        wekan_user = [ u for u in self.config['users'] if u['telegram_id'] == telegram_user ]
+        if len(wekan_user) != 1:
+            return "{} I couldn't associate you with a wekan user.".format(get_exclamation())
+        wekan_user = wekan_user[0]['wekan_id']
+
+        newcard = {
+            "authorId": wekan_user,
+            "title": message,
+            "swimlaneId": self.config['default_lane']
+        }
+
+        card = self.call_api('boards/{}/lists/{}/cards'.format(self.config['board'], self.config['default_list']), payload=newcard)
+        buttons = []
+
+        for user in self.config['users']:
+            buttons.append([{
+                'text': 'Assign to {}'.format(user['name']),
+                'data': '{}:{}:{}'.format(ASSIGN, user['wekan_id'], self.card_to_shorthand(card['_id'], self.config['default_list']))
+            }])
+
+        buttons.append([{
+            'text': 'Thanks!',
+            'data': REMOVE_BUTTONS,
+        }])
+        reply = {
+            'message': "{}! I created the new task for you.".format(get_affirmation()),
+            'buttons': buttons,
+        }
+        return reply
+
+    def call_api(self, path, payload=None, method='GET'):
+        base_url = self.config['url']
+        if not self.token_valid():
+            self.login()
+        headers = {
+            'Authorization': 'Bearer {}'.format(self.token),
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        }
+        if payload:
+            if method == 'GET':
+                method = 'POST'
+            data = requests.request(method, "{}/api/{}".format(base_url, path), json=payload, headers=headers)
+            return data.json()
+        else:
+            data = requests.get("{}/api/{}".format(base_url, path), headers=headers)
+            return data.json()
+        return data
 
 
-def login():
-    base_url = params['config']['url']
-    headers = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-    }
-    login = {
-        'username': params['config']['username'],
-        'password': params['config']['password'],
-    }
-    auth = requests.post("{}/users/login".format(base_url), headers=headers, json=login).json()
-    params['token'] = auth['token']
-    params['token_expires'] = parser.parse(auth['tokenExpires'])
-    params['wekan_id'] = auth['id']
+    def toggle_report(self, actor, db):
+        table = db['wekan']
+        entry = table.find_one(actor=actor)
+        if not entry:
+            entry= {
+                'actor': actor,
+                'enabled': True,
+                'next_message': self.get_next_reminder_date(),
+            }
+            table.insert(entry)
+        else:
+            entry['enabled'] = not entry['enabled']
+            entry['next_message'] = self.get_next_reminder_date(),
+            table.update(entry, ['actor'])
+
+        if entry['enabled']:
+            return "You will receive daily task reports."
+        return "You will no longer receive task reports."
 
 
-def card_to_shorthand(card, list):
-    id_list = [l['id'] for l in params['config']['source_lists']]
-    list_id = str(id_list.index(list))
-    return '{}.{}'.format(list_id, card)
+    def token_valid(self): 
+        return self.token_expires and self.token_expires > datetime.datetime.now().astimezone()
 
 
-def lists_to_shorthand(lists):
-    id_list = [l['id'] for l in params['config']['source_lists']]
-    return [str(id_list.index(l)) for l in lists]
+    def login(self):
+        base_url = self.config['url']
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        }
+        login = {
+            'username': self.config['username'],
+            'password': self.config['password'],
+        }
+        auth = requests.post("{}/users/login".format(base_url), headers=headers, json=login).json()
+        self.token = auth['token']
+        self.token_expires = parser.parse(auth['tokenExpires'])
+        self.wekan_id = auth['id']
 
 
-def lanes_to_shorthand(lanes):
-    id_list = [l['id'] for l in params['config']['lanes']]
-    return [str(id_list.index(l)) for l in lanes]
+    def card_to_shorthand(self, card, list):
+        id_list = [l['id'] for l in self.config['source_lists']]
+        list_id = str(id_list.index(list))
+        return '{}.{}'.format(list_id, card)
 
 
-def shorthand_to_card(shorthand):
-    parts = shorthand.split('.', 1)
-    list_id = int(parts[0])
-    card = parts[1]
-    listt = params['config']['source_lists'][list_id]['id']
-    return card, listt
+    def lists_to_shorthand(self, lists):
+        id_list = [l['id'] for l in self.config['source_lists']]
+        return [str(id_list.index(l)) for l in lists]
 
 
-def shorthand_to_lists(shorthand):
-    if len(shorthand) == 1 and shorthand[0] == '':
-        return []
-    return [params['config']['source_lists'][int(l)]['id'] for l in shorthand]
+    def lanes_to_shorthand(self, lanes):
+        id_list = [l['id'] for l in self.config['lanes']]
+        return [str(id_list.index(l)) for l in lanes]
 
 
-def shorthand_to_lanes(shorthand):
-    if len(shorthand) == 1 and shorthand[0] == '':
-        return []
-    return [params['config']['lanes'][int(l)]['id'] for l in shorthand]
+    def shorthand_to_card(self, shorthand):
+        parts = shorthand.split('.', 1)
+        list_id = int(parts[0])
+        card = parts[1]
+        listt = self.config['source_lists'][list_id]['id']
+        return card, listt
 
 
-def get_next_reminder_date():
-    tomorrow = datetime.datetime.now() + datetime.timedelta(days=1)
-    tomorrowMorning = datetime.datetime(year=tomorrow.year, month=tomorrow.month, day=tomorrow.day, hour=7)
-    return tomorrowMorning
+    def shorthand_to_lists(self, shorthand):
+        if len(shorthand) == 1 and shorthand[0] == '':
+            return []
+        return [self.config['source_lists'][int(l)]['id'] for l in shorthand]
 
 
-def run_periodically(db):
-    debug = params['debug']
-    table = db['wekan']
-    send = params['sendmsg']
-    if debug:
-        logger.info("Querying wekan reports...")
+    def shorthand_to_lanes(self, shorthand):
+        if len(shorthand) == 1 and shorthand[0] == '':
+            return []
+        return [self.config['lanes'][int(l)]['id'] for l in shorthand]
 
-    now = datetime.datetime.now()
-    reminders = db.query('SELECT * FROM wekan WHERE enabled IS TRUE AND next_message < :now', now=now)
 
-    count = 0
-    for reminder in reminders:
-        count += 1
+    def get_next_reminder_date(self):
+        tomorrow = datetime.datetime.now() + datetime.timedelta(days=1)
+        tomorrowMorning = datetime.datetime(year=tomorrow.year, month=tomorrow.month, day=tomorrow.day, hour=7)
+        return tomorrowMorning
+
+
+    def run_periodically(self, db):
+        debug = self._debug
+        table = db['wekan']
+        send = self._messenger.send_message
         if debug:
-            logger.info("Sending wekan report {}".format(count))
-        # this is so stupid I can't even
-        # dataset returns dates as string but only accepts them as datetime
-        reminder['next_message'] = datetime.datetime.strptime(reminder['next_message'], '%Y-%m-%d %H:%M:%S.%f')
+            logger.info("Querying wekan reports...")
 
-        lists = [l['id'] for l in params['config']['source_lists']]
-        msg = get_card_text(reminder['actor'], lists, [])
-        msg['message'] = "Here is your daily task report:\n\n" + msg['message']
+        now = datetime.datetime.now()
+        reminders = db.query('SELECT * FROM wekan WHERE enabled IS TRUE AND next_message < :now', now=now)
 
-        send(msg, key=key, recipient_id=reminder['actor'] if 'actor' in reminder else None)
+        count = 0
+        for reminder in reminders:
+            count += 1
+            if debug:
+                logger.info("Sending wekan report {}".format(count))
+            # this is so stupid I can't even
+            # dataset returns dates as string but only accepts them as datetime
+            reminder['next_message'] = datetime.datetime.strptime(reminder['next_message'], '%Y-%m-%d %H:%M:%S.%f')
 
-        reminder['next_message'] = get_next_reminder_date()
+            lists = [l['id'] for l in self.config['source_lists']]
+            msg = self.get_card_text(reminder['actor'], lists, [])
+            msg['message'] = "Here is your daily task report:\n\n" + msg['message']
 
+            send(msg, key=self.key, recipient_id=reminder['actor'] if 'actor' in reminder else None)
+
+            reminder['next_message'] = self.get_next_reminder_date()
+
+            if debug:
+                logger.info("Updating report {}".format(count))
+            table.update(reminder, ['actor'])
+            if debug:
+                logger.info("Finished report {}".format(count))
         if debug:
-            logger.info("Updating report {}".format(count))
-        table.update(reminder, ['actor'])
-        if debug:
-            logger.info("Finished report {}".format(count))
-    if debug:
-        logger.info("Sent out {} reports".format(count))
+            logger.info("Sent out {} reports".format(count))
