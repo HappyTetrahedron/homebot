@@ -52,6 +52,7 @@ LIMIT = 5
 
 REFRESH_STATIONBOARD = "ref"
 REFRESH_CONNECTIONS = "rec"
+INVERSE_CONNECTIONS = "inv"
 AUTO_REFRESH_STATIONBOARD = "arc"
 AUTO_REFRESH_CONNECTIONS = "ars"
 STOP_AUTO_REFRESH = "sar"
@@ -121,6 +122,13 @@ def handle_button(data, **kwargs):
         to_station = more_parts[1]
         msg = find_connection(from_station, to_station)
         msg['answer'] = "Refreshed!"
+        return msg
+    if cmd == INVERSE_CONNECTIONS:
+        more_parts = payload.split(':')
+        from_station = more_parts[0]
+        to_station = more_parts[1]
+        msg = find_connection(to_station, from_station)
+        msg['answer'] = "Inverted!"
         return msg
     if cmd == AUTO_REFRESH_STATIONBOARD:
         more_parts = payload.split(':')
@@ -220,6 +228,10 @@ def find_connection(from_query, to_query, stop_auto_refresh=False):
         'buttons': [[{
             'text': "Refresh",
             'data': "{}:{}:{}:{}".format(REFRESH_CONNECTIONS, from_id, to_id, next_minute)
+        }],
+        [{
+            'text': "Invert",
+            'data': "{}:{}:{}:{}".format(INVERSE_CONNECTIONS, from_id, to_id, next_minute)
         }],
         [{
             'text': "Stop Auto-Refresh" if stop_auto_refresh else "Auto-Refresh",

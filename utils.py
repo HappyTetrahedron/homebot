@@ -23,6 +23,11 @@ AFFIRMATIONS = [
     "Whoo",
     "Wonderful",
     "Splendid",
+    "Splendiferous",
+    "Superb",
+    "Brilliant",
+    "Cool beans",
+    "Sweet",
 ]
 
 EXCLAMATIONS = [
@@ -32,6 +37,7 @@ EXCLAMATIONS = [
     "Damn...",
     "Aw no!",
     ">.<",
+    "Whoopsie!",
 ]
 
 GENERIC_RESPONSES = [
@@ -46,6 +52,8 @@ GENERIC_RESPONSES = [
     "Tell me more about that",
     "and then what happened?",
     "Oh, can you repeat that?",
+    "No way!",
+    "I knew it!",
 ]
 
 
