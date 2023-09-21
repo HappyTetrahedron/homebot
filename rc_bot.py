@@ -29,6 +29,28 @@ import wekan_handler
 from utils import get_affirmation, get_generic_response
 from utils import PERMISSIONS, PERM_ADMIN, PERM_OWNER, PERM_USER
 
+REACTION_EMOJI = [
+    ':one:',
+    ':two:',
+    ':three:',
+    ':four:',
+    ':five:',
+    ':six:',
+    ':seven:',
+    ':eight:',
+    ':nine',
+    ':keycap_ten:',
+    ':digit_one:',
+    ':digit_two:',
+    ':digit_three:',
+    ':digit_four:',
+    ':digit_five:',
+    ':digit_six:',
+    ':digit_seven:',
+    ':digit_eight:',
+    ':digit_nine:',
+    ':digit_zero:',
+]
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -57,18 +79,21 @@ class RcHomeBot:
 
     @staticmethod
     def assemble_inline_buttons(button_data, prefix_key):
-        buttons = []
+        button_descriptions =  []
+        button_emoji = []
+        button_metadata = {}
+        index = 0
         for row_data in button_data:
-            row = []
             for button_data in row_data:
-                button = InlineKeyboardButton(button_data['text'],
-                                              callback_data='{}#{}'.format(
-                                                  prefix_key,
-                                                  button_data['data']
-                                              ))
-                row.append(button)
-            buttons.append(row)
-        return InlineKeyboardMarkup(buttons)
+                if index < len(REACTION_EMOJI):
+                    emoji = REACTION_EMOJI[index]
+                    button_descriptions.append("{} - {}".format(emoji, button_data['text']))
+                    button_emoji.append(emoji)
+                    button_metadata[emoji] ='{}#{}'.format(
+                        prefix_key,
+                        button_data['data'],
+                    )
+        return '\n'.join(button_descriptions), button_emoji, json.dumps(button_metadata)
 
     def send_message(self, message, key=None, update_message_id=None, recipient_id=None):
         if recipient_id is None:
@@ -86,7 +111,7 @@ class RcHomeBot:
             if 'buttons' in message:
                 if not key:
                     raise ValueError("Using inline buttons requires you to pass a key")
-                buttons = self.assemble_inline_buttons(message['buttons'], key)
+                buttonlist, emoji, metadata = self.assemble_inline_buttons(message['buttons'], key)
             if 'photo' in message:
                 self.bot.api.rooms_upload(room_id,
                                     message['photo'],
@@ -157,11 +182,13 @@ class RcHomeBot:
         else:
             message.reply_in_thread(get_generic_response())
 
-    def handle_inline_button(self, update, context):
-        query = update.callback_query
-        data = update.callback_query.data
+    def handle_inline_button(self, bot, message):
+        reactions = message.data.get("reactions", {})
+        import pprint
+        pprint.pprint(reactions)
 
-        permission = self.get_permissions(query.message.chat.id)
+
+        permission = self.get_permissions(None)
         if permission not in PERMISSIONS:
             return
 
@@ -187,7 +214,7 @@ class RcHomeBot:
                     if 'message' in answer or 'photo' in answer:
                         buttons = None
                         if 'buttons' in answer:
-                            buttons = self.assemble_inline_buttons(answer['buttons'], key)
+                            buttonlist, emoji, metadata = self.assemble_inline_buttons(answer['buttons'], key)
                         if 'photo' in answer:
                             context.bot.edit_message_media(
                                 chat_id=query.message.chat.id,
