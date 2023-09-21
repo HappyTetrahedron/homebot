@@ -5,10 +5,11 @@ import threading
 import yaml
 import logging
 
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
-from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackQueryHandler
-from telegram.error import BadRequest
-import webserver
+from rocketchat_bot_sdk import RocketchatBot
+from rocketchat_bot_sdk import CommandHandler
+from rocketchat_bot_sdk import MessageHandler
+from rocketchat_bot_sdk import ReactionHandler
+
 import dataset
 
 import inventory_handler
@@ -35,22 +36,13 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 HANDLER_CLASSES = [
-    grocery_handler.GroceryHandler,
-    cavs_handler.CavsHandler,
     dice_handler.DiceHandler,
-    buttonhub_handler.ButtonhubHandler,
-    hue_handler.HueHandler,
-    inventory_handler.InventoryHandler,
-    list_preset_handler.ListPresetHandler,
-    pc_handler.PCHandler,
     reminder_handler.ReminderHandler,
     trains_handler.TrainsHandler,
     weather_handler.WeatherHandler,
-    webcam_handler.WebcamHandler,
-    wekan_handler.WekanHandler,
 ]
 
-class HomeBot:
+class RcHomeBot:
     def __init__(self):
         self.db = None
         self.periodic_db = None
@@ -60,14 +52,8 @@ class HomeBot:
         self.handlers = []
 
     def get_permissions(self, user_id):
-        permission = None
-        if str(user_id) == str(self.config['owner_id']):
-            permission = PERM_OWNER
-        if str(user_id) in self.config['admin_ids']:
-            permission = PERM_ADMIN
-        if str(user_id) in self.config['user_ids']:
-            permission = PERM_USER
-        return permission
+        # Permission handling not useful in this use case
+        return PERM_USER
 
     @staticmethod
     def assemble_inline_buttons(button_data, prefix_key):
@@ -87,6 +73,14 @@ class HomeBot:
     def send_message(self, message, key=None, update_message_id=None, recipient_id=None):
         if recipient_id is None:
             recipient_id = self.config['owner_id']
+        
+        room_id = recipient_id
+        thread_id = None
+        if ';' in recipient_id:
+            parts = recipient_id.split(';', 1)
+            room_id = parts[0]
+            thread_id = parts[1]
+
         if isinstance(message, dict):
             buttons = None
             if 'buttons' in message:
@@ -94,68 +88,74 @@ class HomeBot:
                     raise ValueError("Using inline buttons requires you to pass a key")
                 buttons = self.assemble_inline_buttons(message['buttons'], key)
             if 'photo' in message:
-                if update_message_id is not None:
-                    self.bot.edit_message_media(
-                        chat_id=recipient_id,
-                        message_id=update_message_id,
-                        reply_markup=buttons,
-                        media=InputMediaPhoto(
-                            open(message['photo'], 'rb'),
-                            caption=message.get('message'),
-                            parse_mode=message.get('parse_mode')
-                        )
-                    )
-                else:  # new photo
-                    self.bot.send_photo(recipient_id,
-                                        open(message['photo'], 'rb'),
-                                        caption=message.get('message'),
-                                        reply_markup=buttons,
-                                        parse_mode=message.get('parse_mode'))
+                self.bot.api.rooms_upload(room_id,
+                                    message['photo'],
+                                    msg=message.get('message'),
+                                    tmid=thread_id,
+                )
             else:
                 if update_message_id is not None:
-                    self.bot.edit_message_text(
-                        text=message['message'],
-                        reply_markup=buttons,
-                        chat_id=recipient_id,
-                        message_id=update_message_id,
-                        parse_mode=message.get('parse_mode')
-                    )
+                    self.bot.api.chat_update(recipient_id, update_message_id, message['message'], tmd=thread)
                 else:
-                    self.bot.send_message(recipient_id,
+                    self.bot.realtime.send_message(
                                           message['message'],
-                                          reply_markup=buttons,
-                                          parse_mode=message.get('parse_mode'))
+                                          room_id,
+                                          thread_id=thread_id,
+                    )
         else:
             if update_message_id is not None:
                 self.bot.edit_message_text(
                     text=message,
-                    chat_id=recipient_id,
-                    message_id=update_message_id
+                    chat_id=room_id,
+                    message_id=update_message_id,
+                    tmid=thread_id,
                 )
             else:
-                self.bot.send_message(recipient_id, message)
+                self.bot.realtime.send_message(message, room_id, thread_id=thread_id)
 
-    def handle_message(self, update, context):
-        permission = self.get_permissions(update.message.from_user.id)
+    def handle_message(self, bot, message):
+        text = message.data.get("msg")
+        direct = message.is_direct()
+        if not direct:
+            if not (text and text.startsWith('$')):
+                return
+            text = text[1:].strip()
+        permission = self.get_permissions(None)
+
+        message_id = message.data.get("_id")
+        actor_id = message.data.get("u", {}).get("_id")
+        room_id = message.data.get("rid")
+        thread_id = message.data.get("tmid")
+        combo_room_id = room_id
+        if thread_id:
+            combo_room_id = ';'.join([room_id, thread_id])
+        elif not direct:
+            combo_room_id = ';'.join([room_id, message_id])
+
         if self.config['debug']:
-            logger.info("Received message from {}".format(update.message.from_user.id))
+            logger.info("Received message from {}".format(actor_id))
+        
         if permission not in PERMISSIONS:
-            update.message.reply_text("You're not my master. I won't talk to you!")
+            message.reply_in_thread("You're not my master. I won't talk to you!")
             return
         for handler in self.handlers:
             key = handler.key
-            if update.message.text is not None:
+            if text is not None:
                 if handler.matches_message(update.message.text):
-                    reply = handler.handle(update.message.text,
-                                           db=self.db,
-                                           message_id=update.message.message_id,
-                                           actor_id=update.message.from_user.id,
-                                           conversation_id=update.message.chat.id,
-                                           permission=permission)
-                    self.send_message(reply, handler.key, recipient_id=update.message.from_user.id)
-                    return
+                    reply = handler.handle(
+                        update.message.text,
+                        db=self.db,
+                        message_id=message_id,
+                        actor_id=actor_id,
+                        conversation_id=combo_room_id,
+                        permission=permission,
+                    )
+                    self.send_message(reply, handler.key, recipient_id=combo_room_id)
 
-        update.message.reply_text(get_generic_response())
+        if direct:
+            message.reply(get_generic_response())
+        else:
+            message.reply_in_thread(get_generic_response())
 
     def handle_inline_button(self, update, context):
         query = update.callback_query
@@ -181,7 +181,6 @@ class HomeBot:
                     db=self.db,
                     message_id=query.message.message_id,
                     actor_id=query.message.chat.id,
-                    conversation_id=query.message.chat.id,
                     permission=permission
                 )
                 if isinstance(answer, dict):
@@ -222,18 +221,18 @@ class HomeBot:
                     query.answer(answer)
 
     # Help command handler
-    def handle_help(self, update, context):
+    def handle_help(self, bot, message):
         """Send a message when the command /help is issued."""
         helptext = "I am HappyTetrahedron's personal butler.\n\b" \
                    "If you are not HappyTetrahedron, I fear I won't be useful to you."
 
-        permission = self.get_permissions(update.message.from_user.id)
+        permission = self.get_permissions(None)
 
         if permission not in PERMISSIONS:
             update.message.reply_text(helptext, parse_mode="Markdown")
             return
 
-        helptext = "I am HappyTetrahedron's personal butler.\n\n"
+        helptext = "I am your helpful assistant. I can perform a number of tasks.\n\n"
         for handler in self.handlers:
             handler_help = handler.help(permission)
             if handler_help:
@@ -243,15 +242,7 @@ class HomeBot:
                     helptext += " _{}_\n".format(example)
                 helptext += "\n"
 
-        update.message.reply_text(helptext, parse_mode="Markdown")
-
-    # Error handler
-    def handle_error(self, update, context):
-        """Log Errors caused by Updates."""
-        logger.warning('Update "%s" caused error "%s"', update, context.error)
-        if self.config['debug']:
-            import traceback
-            traceback.print_exception(context.error)
+        self.bot.api.chat_post_message(helptext,message.data.get("rid"), tmid=message.data.get("tmid", message.data.get("_id")))
 
     def run(self, opts):
         with open(opts.config, 'r') as configfile:
@@ -267,8 +258,11 @@ class HomeBot:
 
         """Start the bot."""
         # Create the EventHandler and pass it your bot's token.
-        updater = Updater(config['token'], use_context=True)
-        self.bot = updater.bot
+        if 'bot_token' in config:
+            bot = RocketchatBot(api_token=config['bot_token'], user_id=config['bot_id'], server_url=config['server_url'])
+        else:
+            bot = RocketchatBot(username=config['bot_user'], password=config['bot_password'], server_url=config['server_url'])
+        self.bot = bot
 
         """Set up handlers"""
         for handler_class in HANDLER_CLASSES:
@@ -278,30 +272,22 @@ class HomeBot:
         t = threading.Thread(target=self.scheduler_run)
         t.start()
 
-        # Get the dispatcher to register handlers
-        dp = updater.dispatcher
+        bot.add_handler(CommandHandler("help", self.handle_help))
 
-        dp.add_handler(CommandHandler("help", self.handle_help))
+        bot.add_handler(ReactionHandler(self.handle_inline_button))
 
-        dp.add_error_handler(self.handle_error)
-
-        # Callback queries from button presses
-        dp.add_handler(CallbackQueryHandler(self.handle_inline_button))
-
-        dp.add_handler(MessageHandler(None, self.handle_message))
+        bot.add_handler(MessageHandler(self.handle_message))
 
         # Start the Bot
-        updater.start_polling()
-
-        webserver.init(self.send_message, self.config)
-        webserver.run()
-
-        updater.idle()
-
-        self.exit.set()
+        asyncio.run(self._run_bot(bot))
 
         for handler in self.handlers:
             handler.teardown()
+
+        self.exit.set()
+
+    async def _run_bot(self, bot):
+        await bot.run_forever()
 
     def scheduler_run(self):
         while not self.exit.is_set():

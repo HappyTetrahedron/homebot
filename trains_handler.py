@@ -97,6 +97,7 @@ class TrainsHandler(BaseHandler):
         db = kwargs['db']
         message_id = kwargs['message_id']
         actor_id = kwargs['actor_id']
+        conversation_id = kwargs['conversation_id']
         parts = data.split(':', 1)
         cmd = parts[0]
         payload = parts[1]
@@ -134,6 +135,7 @@ class TrainsHandler(BaseHandler):
                 'types': ",".join(types),
                 'until': datetime.datetime.now() + datetime.timedelta(minutes=15),
                 'actor': actor_id,
+                'conversation': conversation_id,
             }
             auto_refreshes.insert(auto_refresh)
             msg = self.stationboard_message(stations, types, stop_auto_refresh=True)
@@ -149,6 +151,7 @@ class TrainsHandler(BaseHandler):
                 'to_station': to_station,
                 'until': datetime.datetime.now() + datetime.timedelta(minutes=15),
                 'actor': actor_id,
+                'conversation': conversation_id,
             }
             auto_refreshes.insert(auto_refresh)
             msg = self.find_connection(from_station, to_station, stop_auto_refresh=True)
@@ -325,7 +328,7 @@ class TrainsHandler(BaseHandler):
             self._messenger.send_message(msg,
                               update_message_id=auto_refresh['message'],
                               key=self.key,
-                              recipient_id=auto_refresh['actor'] if 'actor' in auto_refresh else None)
+                              recipient_id=auto_refresh['conversation'] if 'conversation' in auto_refresh else auto_refresh['actor'] if 'actor' in auto_refresh else None)
 
 
     def get_auto_refresh_message(self, auto_refresh, continue_refreshing=True):

@@ -79,6 +79,7 @@ class ReminderHandler(BaseHandler):
     def handle(self, message, **kwargs):
         db = kwargs['db']
         actor_id = kwargs['actor_id']
+        conversation_id = kwargs['conversation_id']
         match = PATTERN.match(message)
         if not match:
             return "This wasn't supposed to happen."
@@ -91,7 +92,7 @@ class ReminderHandler(BaseHandler):
         subject = groups[2]
 
         if 'every' in time_string or 'each' in time_string:
-            reminder = self.create_periodic_reminder(time_string, subject, separator_word, actor_id)
+            reminder = self.create_periodic_reminder(time_string, subject, separator_word, actor_id, conversation_id)
 
             if not isinstance(reminder, dict):
                 return reminder
@@ -101,7 +102,7 @@ class ReminderHandler(BaseHandler):
             ) + '{}'
 
         else:
-            reminder = self.create_onetime_reminder(time_string, subject, separator_word, actor_id)
+            reminder = self.create_onetime_reminder(time_string, subject, separator_word, actor_id, conversation_id)
             msg = "I set up your reminder for {}"
 
         if isinstance(reminder, dict):
@@ -179,7 +180,7 @@ class ReminderHandler(BaseHandler):
         return answer
 
 
-    def create_periodic_reminder(self, time_string, subject, separator_word, actor_id):
+    def create_periodic_reminder(self, time_string, subject, separator_word, actor_id, conversation_id):
         now = datetime.datetime.now()
         split_every = time_string.split("every")
         if len(split_every) <= 1:
@@ -258,6 +259,7 @@ class ReminderHandler(BaseHandler):
             'unit': unit,
             'separator': separator_word,
             'actor': actor_id,
+            'conversation': conversation_id,
         }
 
         while reminder['next'] < now:
@@ -265,7 +267,7 @@ class ReminderHandler(BaseHandler):
         return reminder
 
 
-    def create_onetime_reminder(self, time_string, subject, separator_word, actor_id):
+    def create_onetime_reminder(self, time_string, subject, separator_word, actor_id, conversation_id):
         now = datetime.datetime.now()
         date_time, parsed = calendar.parseDT(time_string)
         if parsed == 0:
@@ -284,6 +286,7 @@ class ReminderHandler(BaseHandler):
             'periodic': False,
             'separator': separator_word,
             'actor': actor_id,
+            'conversation': conversation_id,
         }
         return reminder
 
@@ -300,6 +303,7 @@ class ReminderHandler(BaseHandler):
             'periodic': False,
             'separator': periodic_reminder['separator'],
             'actor': periodic_reminder['actor'],
+            'conversation': periodic_reminder['conversation'],
         }
         if unit == 'min':
             onetime_reminder['next'] -= datetime.timedelta(minutes=interval)
@@ -439,7 +443,7 @@ class ReminderHandler(BaseHandler):
             send({
                 'message': msg,
                 'buttons': buttons,
-            }, key=self.key, recipient_id=reminder['actor'] if 'actor' in reminder else None)
+            }, key=self.key, recipient_id=reminder['conversation'] if 'conversation' in reminder else reminder['actor'] if 'actor' in reminder else None)
 
             if debug:
                 logger.info("Updating reminder {}".format(count))
