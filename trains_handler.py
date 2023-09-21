@@ -208,7 +208,7 @@ class TrainsHandler(BaseHandler):
                         msg += "{} walk to *{}* {}\n".format(
                             WALK_EMOJI,
                             section['arrival']['station']['name'],
-                            "({})".format(format_duration_seconds(section['walk']['duration']))
+                            "({})".format(self.format_duration_seconds(section['walk']['duration']))
                             if section['walk']['duration']
                             else ""
                         )
