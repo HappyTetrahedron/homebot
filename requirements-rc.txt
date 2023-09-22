@@ -1,0 +1,7 @@
+rocketchat-bot-sdk==0.0.9
+requests
+pyyaml
+dataset
+parsedatetime
+pyxdg
+matplotlib

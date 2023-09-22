@@ -4,6 +4,8 @@ import threading
 
 import yaml
 import logging
+import asyncio
+import json
 
 from rocketchat_bot_sdk import RocketchatBot
 from rocketchat_bot_sdk import CommandHandler
@@ -89,54 +91,77 @@ class RcHomeBot:
                     emoji = REACTION_EMOJI[index]
                     button_descriptions.append("{} - {}".format(emoji, button_data['text']))
                     button_emoji.append(emoji)
-                    button_metadata[emoji] ='{}#{}'.format(
+                    button_metadata[emoji.strip(':')] ='{}#{}'.format(
                         prefix_key,
                         button_data['data'],
                     )
-        return '\n'.join(button_descriptions), button_emoji, json.dumps(button_metadata)
+                index += 1
+        attachment = {
+            'text': json.dumps(button_metadata),
+            'collapsed': True,
+            'title': 'important metadata do not look'
+        }
+        return '\n'.join(button_descriptions), button_emoji, attachment
 
     def send_message(self, message, key=None, update_message_id=None, recipient_id=None):
         if recipient_id is None:
             recipient_id = self.config['owner_id']
+        kwargs = {}
         
         room_id = recipient_id
         thread_id = None
+        emoji = []
+        sent_msg = None
         if ';' in recipient_id:
             parts = recipient_id.split(';', 1)
             room_id = parts[0]
             thread_id = parts[1]
+            kwargs['tmid'] = thread_id
 
         if isinstance(message, dict):
             buttons = None
+            text = message.get('message', "")
             if 'buttons' in message:
                 if not key:
                     raise ValueError("Using inline buttons requires you to pass a key")
-                buttonlist, emoji, metadata = self.assemble_inline_buttons(message['buttons'], key)
+                buttonlist, emoji, attachment = self.assemble_inline_buttons(message['buttons'], key)
+                kwargs['attachments'] = [attachment]
+                text = '{}\n\n{}'.format(text, buttonlist)
+
             if 'photo' in message:
-                self.bot.api.rooms_upload(room_id,
+                sent_msg = self.bot.api.rooms_upload(room_id,
                                     message['photo'],
-                                    msg=message.get('message'),
-                                    tmid=thread_id,
+                                    msg=text,
+                                    **kwargs,
                 )
             else:
                 if update_message_id is not None:
-                    self.bot.api.chat_update(recipient_id, update_message_id, message['message'], tmd=thread)
+                    sent_msg = self.bot.api.chat_update(
+                        recipient_id,
+                        update_message_id,
+                        text,
+                        **kwargs,
+                    )
                 else:
-                    self.bot.realtime.send_message(
-                                          message['message'],
-                                          room_id,
-                                          thread_id=thread_id,
+                    sent_msg = self.bot.api.chat_post_message(
+                        text,
+                        room_id,
+                        **kwargs,
                     )
         else:
             if update_message_id is not None:
-                self.bot.edit_message_text(
-                    text=message,
-                    chat_id=room_id,
-                    message_id=update_message_id,
-                    tmid=thread_id,
+                sent_msg = self.bot.api.chat_update(
+                    recipient_id,
+                    update_message_id,
+                    text,
+                    **kwargs,
                 )
             else:
-                self.bot.realtime.send_message(message, room_id, thread_id=thread_id)
+                sent_msg = self.bot.api.chat_post_message(message, room_id, **kwargs)
+        sent_id = sent_msg.json()['message']['_id']
+        for e in emoji:
+            self.bot.api.chat_react(sent_id, e)
+
 
     def handle_message(self, bot, message):
         text = message.data.get("msg")
@@ -156,19 +181,28 @@ class RcHomeBot:
             combo_room_id = ';'.join([room_id, thread_id])
         elif not direct:
             combo_room_id = ';'.join([room_id, message_id])
+        
+        kwargs = {}
+        if thread_id:
+            kwargs['tmid'] = thread_id
 
         if self.config['debug']:
             logger.info("Received message from {}".format(actor_id))
         
         if permission not in PERMISSIONS:
-            message.reply_in_thread("You're not my master. I won't talk to you!")
+            self.reply_in_thread(message, "You're not my master. I won't talk to you!")
+            self.bot.api.chat_post_message(
+                "You're not my master. I won't talk to you!",
+                message['rid'],
+                **kwargs,
+            )
             return
         for handler in self.handlers:
             key = handler.key
             if text is not None:
-                if handler.matches_message(update.message.text):
+                if handler.matches_message(text):
                     reply = handler.handle(
-                        update.message.text,
+                        text,
                         db=self.db,
                         message_id=message_id,
                         actor_id=actor_id,
@@ -176,11 +210,15 @@ class RcHomeBot:
                         permission=permission,
                     )
                     self.send_message(reply, handler.key, recipient_id=combo_room_id)
+                    return
+
+        if self.config['debug']:
+            logger.info("No match for message from {}".format(actor_id))
 
         if direct:
-            message.reply(get_generic_response())
+            self.reply(message, get_generic_response())
         else:
-            message.reply_in_thread(get_generic_response())
+            self.reply_in_thread(message, get_generic_response())
 
     def handle_inline_button(self, bot, message):
         reactions = message.data.get("reactions", {})
@@ -214,7 +252,7 @@ class RcHomeBot:
                     if 'message' in answer or 'photo' in answer:
                         buttons = None
                         if 'buttons' in answer:
-                            buttonlist, emoji, metadata = self.assemble_inline_buttons(answer['buttons'], key)
+                            buttonlist, emoji, attachment = self.assemble_inline_buttons(answer['buttons'], key)
                         if 'photo' in answer:
                             context.bot.edit_message_media(
                                 chat_id=query.message.chat.id,
@@ -233,7 +271,8 @@ class RcHomeBot:
                                     reply_markup=buttons,
                                     chat_id=query.message.chat.id,
                                     message_id=query.message.message_id,
-                                    parse_mode=answer.get('parse_mode')
+                                    parse_mode=answer.get('parse_mode'),
+                                    attachments=[attachment],
                                 )
                             except BadRequest as err: # Ignore "message is not modified"
                                 if "Message is not modified" not in err.message:
@@ -253,10 +292,14 @@ class RcHomeBot:
         helptext = "I am HappyTetrahedron's personal butler.\n\b" \
                    "If you are not HappyTetrahedron, I fear I won't be useful to you."
 
+        direct = message.is_direct()
         permission = self.get_permissions(None)
 
         if permission not in PERMISSIONS:
-            update.message.reply_text(helptext, parse_mode="Markdown")
+            if direct:
+                self.reply(message, helptext)
+            else:
+                self.reply_in_thread(message, helptext)
             return
 
         helptext = "I am your helpful assistant. I can perform a number of tasks.\n\n"
@@ -269,14 +312,15 @@ class RcHomeBot:
                     helptext += " _{}_\n".format(example)
                 helptext += "\n"
 
-        self.bot.api.chat_post_message(helptext,message.data.get("rid"), tmid=message.data.get("tmid", message.data.get("_id")))
+        if direct:
+            self.reply(message,helptext)
+        else:
+            self.reply_in_thread(message, helptext)
 
     def run(self, opts):
         with open(opts.config, 'r') as configfile:
             config = yaml.load(configfile, Loader=yaml.SafeLoader)
 
-        self.db = dataset.connect('sqlite:///{}'.format(config['db']))
-        self.periodic_db = dataset.connect('sqlite:///{}'.format(config['db']))
         self.config = config
         if 'debug' not in config:
             config['debug'] = False
@@ -296,7 +340,7 @@ class RcHomeBot:
             handler = handler_class(self.config, self)
             self.handlers.append(handler)
 
-        t = threading.Thread(target=self.scheduler_run)
+        t = threading.Thread(target=self.scheduler_run, args=[config['db']])
         t.start()
 
         bot.add_handler(CommandHandler("help", self.handle_help))
@@ -306,17 +350,19 @@ class RcHomeBot:
         bot.add_handler(MessageHandler(self.handle_message))
 
         # Start the Bot
-        asyncio.run(self._run_bot(bot))
+        asyncio.run(self._run_bot(bot, config['db']))
 
         for handler in self.handlers:
             handler.teardown()
 
         self.exit.set()
 
-    async def _run_bot(self, bot):
+    async def _run_bot(self, bot, dbfile):
+        self.db = dataset.connect('sqlite:///{}'.format(dbfile))
         await bot.run_forever()
 
-    def scheduler_run(self):
+    def scheduler_run(self, dbfile):
+        self.periodic_db = dataset.connect('sqlite:///{}'.format(dbfile))
         while not self.exit.is_set():
             for handler in self.handlers:
                 try:
@@ -331,10 +377,26 @@ class RcHomeBot:
                 logger.exception(e)
         logger.info("Scheduler thread has exited")
         logger.info("Exit signal is {}".format(self.exit.is_set()))
+    
+
+    def reply(self, message, reply_text):
+        tmid = message.data.get('tmid', None)
+        if tmid:
+            self.bot.api.chat_post_message(reply_text, message.data['rid'], tmid=tmid)
+        else:
+            self.bot.api.chat_post_message(reply_text, message.data['rid'])
+
+    def reply_in_thread(self, message, reply_text):
+        tmid = message.data.get('tmid', message.data.get('rid', None))
+        if tmid:
+            self.bot.api.chat_post_message(reply_text, message.data['rid'], tmid=tmid)
+        else:
+            self.bot.api.chat_post_message(reply_text, message.data['rid'])
+
 
 
 def main(opts):
-    HomeBot().run(opts)
+    RcHomeBot().run(opts)
 
 
 if __name__ == '__main__':
