@@ -15,6 +15,8 @@ REMOVE_BUTTONS = 'rd'
 UPDATE = 'up'
 ASSIGN = 'ass'
 
+CARD_SYNONYMS = ['cards', 'todos', 'tasks'] # all 5 characters - if any of different length are introduced fix code below!
+
 class WekanHandler(BaseHandler):
     
     def __init__(self, config, messenger):
@@ -30,9 +32,9 @@ class WekanHandler(BaseHandler):
     def matches_message(self, message):
         if not self.enabled:
             return False
-        if message.lower() == 'cards':
+        if message.lower() in CARD_SYNONYMS:
             return True
-        if message.lower().endswith(' cards'):
+        if any([message.lower().endswith(' ' + it) for it in CARD_SYNONYMS]):
             return True
         if message.lower().startswith('do '):
             return True
@@ -58,15 +60,15 @@ class WekanHandler(BaseHandler):
     
 
     def handle(self, message, **kwargs):
-        if message.lower() == 'cards':
+        if message.lower() in CARD_SYNONYMS:
             message = ' cards'
         if message.lower().startswith('do '):
             task = message[3:]
             return self.create_card(kwargs['actor_id'], task)
         if message.lower().startswith('toggle task report'):
             return self.toggle_report(kwargs['actor_id'], kwargs['db'])
-        elif message.lower().endswith(' cards'):
-            l = message[:-6].lower()
+        elif any([message.lower().endswith(' ' + it) for it in CARD_SYNONYMS]):
+            l = message[:-6].lower() # IMPORTANT this only happens to work by chance since all synonyms are 5 characters
             lanes = []
             for lane in self.config['lanes']:
                 for name in lane['names']:
@@ -178,14 +180,16 @@ class WekanHandler(BaseHandler):
                     'text': card['title'],
                     'data': '{}:{}:{}:{}'.format(MARK_DONE, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
                 }])
-        buttons.append([{
-                'text': "Update cards.",
+        buttons.append([
+            {
+                'text': "Update",
                 'data': '{}:{}:{}'.format(UPDATE, ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
-        }])
-        buttons.append([{
-                'text': "I'm done.",
+            },
+            {
+                'text': "Done",
                 'data': '{}:{}:{}'.format(DISMISS_LIST, ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
-        }])
+            }
+        ])
 
         return {
             'message': "I found the following cards:",
