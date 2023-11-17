@@ -66,7 +66,7 @@ class WebcamHandler(BaseHandler):
             }]]
         try:
             url = next(c['url'] for c in self.cams if c['name'] == cam)
-            resp = requests.get(url, timeout=3)
+            resp = requests.get(url, timeout=8)
             with open(self.tmp_path, 'wb') as file:
                 file.write(resp.content)
 
