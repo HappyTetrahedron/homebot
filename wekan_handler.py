@@ -64,7 +64,7 @@ class WekanHandler(BaseHandler):
     def handle(self, message, **kwargs):
         m = message.lower()
         if m in CARD_SYNONYMS:
-            message = ' cards'
+            m = ' cards'
         if m.startswith('do '):
             if m.startswith('do eventually '):
                 task = message[14:]
@@ -92,6 +92,7 @@ class WekanHandler(BaseHandler):
                 lists = [l['id'] for l in self.config['source_lists']]
 
             return self.get_card_buttons(kwargs['actor_id'], lists, lanes)
+        return 'Something went wrong'
 
 
     def handle_button(self, data, **kwargs):
