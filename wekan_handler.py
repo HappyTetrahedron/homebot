@@ -268,16 +268,17 @@ class WekanHandler(BaseHandler):
         card = self.call_api('boards/{}/lists/{}/cards'.format(self.config['board'], list_id), payload=newcard)
         buttons = []
 
-        for user in self.config['users']:
-            buttons.append([{
-                'text': 'Assign to {}'.format(user['name']),
-                'data': '{}:{}:{}'.format(ASSIGN, user['wekan_id'], self.card_to_shorthand(card['_id'], list_id))
-            }])
+        if list_id == self.config['default_list']:
+            for user in self.config['users']:
+                buttons.append([{
+                    'text': 'Assign to {}'.format(user['name']),
+                    'data': '{}:{}:{}'.format(ASSIGN, user['wekan_id'], self.card_to_shorthand(card['_id'], list_id))
+                }])
 
-        buttons.append([{
-            'text': 'Thanks!',
-            'data': REMOVE_BUTTONS,
-        }])
+            buttons.append([{
+                'text': 'Thanks!',
+                'data': REMOVE_BUTTONS,
+            }])
         reply = {
             'message': "{}! I created the new task for you.".format(get_affirmation()),
             'buttons': buttons,
@@ -344,28 +345,28 @@ class WekanHandler(BaseHandler):
         self.wekan_id = auth['id']
 
 
-    def card_to_shorthand(self, card, list):
-        id_list = [l['id'] for l in self.config['source_lists']]
-        list_id = str(id_list.index(list))
-        return '{}.{}'.format(list_id, card)
+    def card_to_shorthand(self, card, list_id):
+        list_ids = [l['id'] for l in self.config['source_lists']]
+        list_index = list_ids.index(list_id)
+        return '{}.{}'.format(list_index, card)
 
 
     def lists_to_shorthand(self, lists):
-        id_list = [l['id'] for l in self.config['source_lists']]
-        return [str(id_list.index(l)) for l in lists]
+        list_ids = [l['id'] for l in self.config['source_lists']]
+        return [str(list_ids.index(l)) for l in lists]
 
 
     def lanes_to_shorthand(self, lanes):
-        id_list = [l['id'] for l in self.config['lanes']]
-        return [str(id_list.index(l)) for l in lanes]
+        lane_ids = [l['id'] for l in self.config['lanes']]
+        return [str(lane_ids.index(l)) for l in lanes]
 
 
     def shorthand_to_card(self, shorthand):
         parts = shorthand.split('.', 1)
-        list_id = int(parts[0])
+        list_index = int(parts[0])
         card = parts[1]
-        listt = self.config['source_lists'][list_id]['id']
-        return card, listt
+        list_id = self.config['source_lists'][list_index]['id']
+        return card, list_id
 
 
     def shorthand_to_lists(self, shorthand):
