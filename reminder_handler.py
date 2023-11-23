@@ -148,7 +148,7 @@ class ReminderHandler(BaseHandler):
             }
         if method == DELETE_MESSAGE:
             answer = {
-                'answer': "You will be reminded.",
+                'answer': "You will be reminded. It is inevitable.",
                 'delete': True
             }
         if method == REMOVE_PERIODIC_REMINDER:
@@ -267,16 +267,22 @@ class ReminderHandler(BaseHandler):
 
     def create_onetime_reminder(self, time_string, subject, separator_word, actor_id):
         now = datetime.datetime.now()
-        date_time, parsed = calendar.parseDT(time_string)
-        if parsed == 0:
-            return "Sorry, I don't understand what you mean by \"{}\".".format(time_string)
-        if parsed == 1:
-            # date without time - assume morning
-            date_time = datetime.datetime.combine(date_time.date(), datetime.time(hour=7, minute=0))
-        if parsed == 2:
-            # time without date - assume next time that time comes up
+        if time_string == "me":
+            # neither date nor time provided - assume tomorrow morning
+            date_time = now.replace(hour=7, minute=0)
             if now > date_time:
                 date_time += datetime.timedelta(days=1)
+        else:
+            date_time, parsed = calendar.parseDT(time_string)
+            if parsed == 0:
+                return "Sorry, I don't understand what you mean by \"{}\".".format(time_string)
+            if parsed == 1:
+                # date without time - assume morning
+                date_time = datetime.datetime.combine(date_time.date(), datetime.time(hour=7, minute=0))
+            if parsed == 2:
+                # time without date - assume next time that time comes up
+                if now > date_time:
+                    date_time += datetime.timedelta(days=1)
         reminder = {
             'next': date_time,
             'subject': subject,
