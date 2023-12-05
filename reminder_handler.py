@@ -100,7 +100,9 @@ class ReminderHandler(BaseHandler):
                 self.unit_to_readable(reminder['unit'], reminder['interval'] == 1),
             ) + '{}'
 
-        elif time_string == 'me':
+        elif message.lower().startswith("remind me to "):
+            separator_word = "to"
+            subject = message[13:]
             reminder = self.create_reminder_with_unspecified_time(subject, separator_word, actor_id)
             msg = "I set up your reminder for {}"
 
