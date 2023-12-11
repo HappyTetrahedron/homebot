@@ -384,7 +384,13 @@ class WekanHandler(BaseHandler):
 
     def get_next_reminder_date(self):
         tomorrow = datetime.datetime.now() + datetime.timedelta(days=1)
-        tomorrow_morning = datetime.datetime(year=tomorrow.year, month=tomorrow.month, day=tomorrow.day, hour=7)
+        tomorrow_morning = datetime.datetime(
+            year=tomorrow.year,
+            month=tomorrow.month,
+            day=tomorrow.day,
+            hour=5,
+            minute=55,
+        )
         return tomorrow_morning
 
 
