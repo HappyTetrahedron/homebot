@@ -18,7 +18,7 @@ METEO_PAGE_URL = "https://www.meteoswiss.admin.ch/home.html?tab=overview"
 METEO_VERSIONS_URL = "https://www.meteoswiss.admin.ch/product/output/versions.json"
 
 METEO_FORECAST_URL = "https://www.meteoswiss.admin.ch/product/output/forecast-chart/version__{}/en/{}.json"
-METEO_SEARCH_URL = "https://www.meteoswiss.admin.ch/static/product/resources/local-forecast-search/{}.json"
+METEO_SEARCH_URL = "https://www.meteoswiss.admin.ch/static/resources/local-forecast-search/{}.json"
 
 METEO_API_HEADERS = {"referer": "https://www.meteoswiss.admin.ch/home.html?tab=overview"}
 
@@ -45,7 +45,7 @@ class WeatherHandler(BaseHandler):
 
 
     def matches_message(self, message):
-        return "weather" in message.lower()
+        return message.lower().startswith("weather")
 
 
     def handle(self, message, **kwargs):

@@ -75,11 +75,13 @@ class HomeBot:
         for row_data in button_data:
             row = []
             for button_data in row_data:
-                button = InlineKeyboardButton(button_data['text'],
-                                              callback_data='{}#{}'.format(
-                                                  prefix_key,
-                                                  button_data['data']
-                                              ))
+                button = InlineKeyboardButton(
+                    button_data['text'],
+                    callback_data='{}#{}'.format(
+                        prefix_key,
+                        button_data['data']
+                    ),
+                )
                 row.append(button)
             buttons.append(row)
         return InlineKeyboardMarkup(buttons)
@@ -89,7 +91,7 @@ class HomeBot:
             recipient_id = self.config['owner_id']
         if isinstance(message, dict):
             buttons = None
-            if 'buttons' in message:
+            if message.get('buttons'):
                 if not key:
                     raise ValueError("Using inline buttons requires you to pass a key")
                 buttons = self.assemble_inline_buttons(message['buttons'], key)
@@ -187,7 +189,7 @@ class HomeBot:
                 if isinstance(answer, dict):
                     if 'message' in answer or 'photo' in answer:
                         buttons = None
-                        if 'buttons' in answer:
+                        if answer.get('buttons'):
                             buttons = self.assemble_inline_buttons(answer['buttons'], key)
                         if 'photo' in answer:
                             context.bot.edit_message_media(

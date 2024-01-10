@@ -66,7 +66,7 @@ class WebcamHandler(BaseHandler):
             }]]
         try:
             url = next(c['url'] for c in self.cams if c['name'] == cam)
-            resp = requests.get(url, timeout=3)
+            resp = requests.get(url, timeout=8)
             with open(self.tmp_path, 'wb') as file:
                 file.write(resp.content)
 
@@ -86,3 +86,17 @@ class WebcamHandler(BaseHandler):
                 'photo': NOIMAGE,
                 'message': "{} Seems like this webcam doesn't exist anymore. :(".format(get_exclamation()),
             }
+        except requests.exceptions.Timeout:
+            return {
+                'photo': NOIMAGE,
+                'message': "{} The {} webcam timed out. :(".format(get_exclamation(), cam),
+                'buttons': buttons,
+            }
+        except Exception as e:
+            print(e)
+            return {
+                'photo': NOIMAGE,
+                'message': "{} Something went horribly wrong with {} webcam. :(".format(get_exclamation(), cam),
+                'buttons': buttons,
+            }
+

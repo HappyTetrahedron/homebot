@@ -101,6 +101,12 @@ class ReminderHandler(BaseHandler):
                 self.unit_to_readable(reminder['unit'], reminder['interval'] == 1),
             ) + '{}'
 
+        elif message.lower().startswith("remind me to "):
+            separator_word = "to"
+            subject = message[13:]
+            reminder = self.create_reminder_with_unspecified_time(subject, separator_word, actor_id, conversation_id)
+            msg = "I set up your reminder for {}"
+
         else:
             reminder = self.create_onetime_reminder(time_string, subject, separator_word, actor_id, conversation_id)
             msg = "I set up your reminder for {}"
@@ -149,7 +155,7 @@ class ReminderHandler(BaseHandler):
             }
         if method == DELETE_MESSAGE:
             answer = {
-                'answer': "You will be reminded.",
+                'answer': "You will be reminded. It is inevitable.",
                 'delete': True
             }
         if method == REMOVE_PERIODIC_REMINDER:
@@ -221,7 +227,7 @@ class ReminderHandler(BaseHandler):
                 if unit == 'month':
                     day = int(re.sub('\D', '', contains_date))
                     if 0 < day < 29:  # sorry we can't handle february otherwise.
-                        date_time = datetime.datetime(year=now.year, month=now.month, day=day, hour=7, minute=0)
+                        date_time = datetime.datetime(year=now.year, month=now.month, day=day, hour=6, minute=0)
                     else:
                         return "Oh no, I couldn't understand what you mean by \"{}\". Note that you can only use " \
                                "dates (days of month) between 1 and 28, unfortunately.".format(contains_date)
@@ -229,7 +235,7 @@ class ReminderHandler(BaseHandler):
                     return "Oh no, I couldn't understand what you mean by \"{}\".".format(contains_date)
 
             if parsed == 1:
-                date_time = datetime.datetime.combine(date_time.date(), datetime.time(hour=7, minute=0))
+                date_time = datetime.datetime.combine(date_time.date(), datetime.time(hour=6, minute=0))
 
             if parsed == 2:
                 # time without date - only makes sense if unit is day or hour:
@@ -243,11 +249,11 @@ class ReminderHandler(BaseHandler):
             elif unit == 'h':
                 date_time = datetime.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour)
             elif unit == 'day' or unit == 'week':
-                date_time = datetime.datetime(year=now.year, month=now.month, day=now.day, hour=7)
+                date_time = datetime.datetime(year=now.year, month=now.month, day=now.day, hour=6)
             elif unit == 'month':
-                date_time = datetime.datetime(year=now.year, month=now.month, day=1, hour=7)
+                date_time = datetime.datetime(year=now.year, month=now.month, day=1, hour=6)
             elif unit == 'year':
-                date_time = datetime.datetime(year=now.year + 1, month=1, day=1, hour=7)
+                date_time = datetime.datetime(year=now.year + 1, month=1, day=1, hour=6)
 
         # phew.
         reminder = {
@@ -267,6 +273,25 @@ class ReminderHandler(BaseHandler):
         return reminder
 
 
+    def create_reminder_with_unspecified_time(self, subject, separator_word, actor_id, conversation_id):
+        now = datetime.datetime.now()
+        date_time = now.replace(hour=6, minute=0)
+        if now > date_time:
+            date_time = now.replace(hour=19, minute=0)
+            if now > date_time:
+                date_time = now.replace(hour=6, minute=0) + datetime.timedelta(days=1)
+        reminder = {
+            'next': date_time,
+            'subject': subject,
+            'active': True,
+            'periodic': False,
+            'separator': separator_word,
+            'actor': actor_id,
+            'conversation': conversation_id,
+        }
+        return reminder
+
+
     def create_onetime_reminder(self, time_string, subject, separator_word, actor_id, conversation_id):
         now = datetime.datetime.now()
         date_time, parsed = calendar.parseDT(time_string)
@@ -274,7 +299,7 @@ class ReminderHandler(BaseHandler):
             return "Sorry, I don't understand what you mean by \"{}\".".format(time_string)
         if parsed == 1:
             # date without time - assume morning
-            date_time = datetime.datetime.combine(date_time.date(), datetime.time(hour=7, minute=0))
+            date_time = datetime.datetime.combine(date_time.date(), datetime.time(hour=6, minute=0))
         if parsed == 2:
             # time without date - assume next time that time comes up
             if now > date_time:
@@ -337,7 +362,7 @@ class ReminderHandler(BaseHandler):
         if unit == 'week':
             reminder['next'] += datetime.timedelta(days=7*interval)
         if unit == 'month':
-            reminder['next'] = advance_by_a_month(reminder['next'], interval)
+            reminder['next'] = self.advance_by_a_month(reminder['next'], interval)
         if unit == 'year':
             dt = reminder['next']
             reminder['next'] = datetime.datetime(dt.year + interval, dt.month, dt.day, dt.hour, dt.minute)
@@ -351,7 +376,6 @@ class ReminderHandler(BaseHandler):
 
 
     def advance_by_a_month(self, date_time, months):
-
         new_month = date_time.month + months
         add_year = 0
         while new_month > 12:

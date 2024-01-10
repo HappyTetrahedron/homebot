@@ -30,15 +30,16 @@ class WekanHandler(BaseHandler):
 
 
     def matches_message(self, message):
+        m = message.lower()
         if not self.enabled:
             return False
-        if message.lower() in CARD_SYNONYMS:
+        if m in CARD_SYNONYMS:
             return True
-        if any([message.lower().endswith(' ' + it) for it in CARD_SYNONYMS]):
+        if any([m.endswith(' ' + it) for it in CARD_SYNONYMS]):
             return True
-        if message.lower().startswith('do '):
+        if m.startswith('do '):
             return True
-        if message.lower().startswith('toggle task report'):
+        if m.startswith('toggle task report'):
             return True
         return False
 
@@ -54,21 +55,28 @@ class WekanHandler(BaseHandler):
                     "{} cards".format(self.config['source_lists'][0]['names'][0]),
                     "{} cards".format(self.config['lanes'][0]['names'][0]),
                     "do this very important task",
+                    "do eventually this low-prio task",
                     "toggle task report",
-                    ],
+                ],
             }
     
 
     def handle(self, message, **kwargs):
-        if message.lower() in CARD_SYNONYMS:
-            message = ' cards'
-        if message.lower().startswith('do '):
-            task = message[3:]
-            return self.create_card(kwargs['actor_id'], task)
-        if message.lower().startswith('toggle task report'):
+        m = message.lower()
+        if m in CARD_SYNONYMS:
+            m = ' cards'
+        if m.startswith('do '):
+            if m.startswith('do eventually '):
+                task = message[14:]
+                list_id = self.config['backlog_list']
+            else:
+                task = message[3:]
+                list_id = self.config['default_list']
+            return self.create_card(kwargs['actor_id'], task, list_id)
+        if m.startswith('toggle task report'):
             return self.toggle_report(kwargs['actor_id'], kwargs['db'])
-        elif any([message.lower().endswith(' ' + it) for it in CARD_SYNONYMS]):
-            l = message[:-6].lower() # IMPORTANT this only happens to work by chance since all synonyms are 5 characters
+        elif any([m.endswith(' ' + it) for it in CARD_SYNONYMS]):
+            l = m[:-6] # IMPORTANT this only happens to work by chance since all synonyms are 5 characters
             lanes = []
             for lane in self.config['lanes']:
                 for name in lane['names']:
@@ -84,6 +92,7 @@ class WekanHandler(BaseHandler):
                 lists = [l['id'] for l in self.config['source_lists']]
 
             return self.get_card_buttons(kwargs['actor_id'], lists, lanes)
+        return 'Something went wrong'
 
 
     def handle_button(self, data, **kwargs):
@@ -100,6 +109,8 @@ class WekanHandler(BaseHandler):
             lists = self.shorthand_to_lists(args[0].split(','))
             lanes = self.shorthand_to_lanes(args[1].split(','))
             resp = self.get_card_text(kwargs['actor_id'], lists, lanes)
+            if isinstance(resp, str):
+                resp = {'message': resp}
             resp['answer'] = get_affirmation()
             return resp
 
@@ -108,6 +119,8 @@ class WekanHandler(BaseHandler):
             lists = self.shorthand_to_lists(args[0].split(','))
             lanes = self.shorthand_to_lanes(args[1].split(','))
             resp = self.get_card_buttons(kwargs['actor_id'], lists, lanes)
+            if isinstance(resp, str):
+                resp = {'message': resp}
             resp['answer'] = get_affirmation()
             return resp
 
@@ -226,15 +239,15 @@ class WekanHandler(BaseHandler):
 
         cards = {}
         if lists and lanes:
-            # both were specified so we will only display cards that match both:
+            # both were specified, so we will only display cards that match both:
 
             for listId, cardList in all_list_cards.items():
-                currentList = []
+                current_list = []
                 for card in cardList:
                     if card['_id'] in [c['_id'] for c in all_lane_cards.get(listId, [])]:
-                        currentList.append(card)
-                if currentList:
-                    cards[listId] = currentList
+                        current_list.append(card)
+                if current_list:
+                    cards[listId] = current_list
 
         if lists and not lanes:
             cards = all_list_cards
@@ -245,7 +258,7 @@ class WekanHandler(BaseHandler):
             return "{}! You've got no cards right now.".format(get_affirmation())
         return cards
 
-    def create_card(self, telegram_user, message):
+    def create_card(self, telegram_user, message, list_id):
         wekan_user = [ u for u in self.config['users'] if u['telegram_id'] == telegram_user ]
         if len(wekan_user) != 1:
             return "{} I couldn't associate you with a wekan user.".format(get_exclamation())
@@ -257,19 +270,20 @@ class WekanHandler(BaseHandler):
             "swimlaneId": self.config['default_lane']
         }
 
-        card = self.call_api('boards/{}/lists/{}/cards'.format(self.config['board'], self.config['default_list']), payload=newcard)
+        card = self.call_api('boards/{}/lists/{}/cards'.format(self.config['board'], list_id), payload=newcard)
         buttons = []
 
-        for user in self.config['users']:
-            buttons.append([{
-                'text': 'Assign to {}'.format(user['name']),
-                'data': '{}:{}:{}'.format(ASSIGN, user['wekan_id'], self.card_to_shorthand(card['_id'], self.config['default_list']))
-            }])
+        if list_id == self.config['default_list']:
+            for user in self.config['users']:
+                buttons.append([{
+                    'text': 'Assign to {}'.format(user['name']),
+                    'data': '{}:{}:{}'.format(ASSIGN, user['wekan_id'], self.card_to_shorthand(card['_id'], list_id))
+                }])
 
-        buttons.append([{
-            'text': 'Thanks!',
-            'data': REMOVE_BUTTONS,
-        }])
+            buttons.append([{
+                'text': 'Thanks!',
+                'data': REMOVE_BUTTONS,
+            }])
         reply = {
             'message': "{}! I created the new task for you.".format(get_affirmation()),
             'buttons': buttons,
@@ -336,28 +350,28 @@ class WekanHandler(BaseHandler):
         self.wekan_id = auth['id']
 
 
-    def card_to_shorthand(self, card, list):
-        id_list = [l['id'] for l in self.config['source_lists']]
-        list_id = str(id_list.index(list))
-        return '{}.{}'.format(list_id, card)
+    def card_to_shorthand(self, card, list_id):
+        list_ids = [l['id'] for l in self.config['source_lists']]
+        list_index = list_ids.index(list_id)
+        return '{}.{}'.format(list_index, card)
 
 
     def lists_to_shorthand(self, lists):
-        id_list = [l['id'] for l in self.config['source_lists']]
-        return [str(id_list.index(l)) for l in lists]
+        list_ids = [l['id'] for l in self.config['source_lists']]
+        return [str(list_ids.index(l)) for l in lists]
 
 
     def lanes_to_shorthand(self, lanes):
-        id_list = [l['id'] for l in self.config['lanes']]
-        return [str(id_list.index(l)) for l in lanes]
+        lane_ids = [l['id'] for l in self.config['lanes']]
+        return [str(lane_ids.index(l)) for l in lanes]
 
 
     def shorthand_to_card(self, shorthand):
         parts = shorthand.split('.', 1)
-        list_id = int(parts[0])
+        list_index = int(parts[0])
         card = parts[1]
-        listt = self.config['source_lists'][list_id]['id']
-        return card, listt
+        list_id = self.config['source_lists'][list_index]['id']
+        return card, list_id
 
 
     def shorthand_to_lists(self, shorthand):
@@ -374,8 +388,14 @@ class WekanHandler(BaseHandler):
 
     def get_next_reminder_date(self):
         tomorrow = datetime.datetime.now() + datetime.timedelta(days=1)
-        tomorrowMorning = datetime.datetime(year=tomorrow.year, month=tomorrow.month, day=tomorrow.day, hour=7)
-        return tomorrowMorning
+        tomorrow_morning = datetime.datetime(
+            year=tomorrow.year,
+            month=tomorrow.month,
+            day=tomorrow.day,
+            hour=5,
+            minute=55,
+        )
+        return tomorrow_morning
 
 
     def run_periodically(self, db):
@@ -399,7 +419,10 @@ class WekanHandler(BaseHandler):
 
             lists = [l['id'] for l in self.config['source_lists']]
             msg = self.get_card_text(reminder['actor'], lists, [])
-            msg['message'] = "Here is your daily task report:\n\n" + msg['message']
+            if isinstance(msg, dict):
+                msg['message'] = "Here is your daily task report:\n\n" + msg['message']
+                # only send if there are actual tasks, which is conveniently only the case if msg is a dict
+                send(msg, key=self.key, recipient_id=reminder['actor'] if 'actor' in reminder else None)
 
             send(msg, key=self.key, recipient_id=reminder['actor'] if 'actor' in reminder else None)
 
