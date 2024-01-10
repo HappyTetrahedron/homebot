@@ -109,6 +109,8 @@ class WekanHandler(BaseHandler):
             lists = self.shorthand_to_lists(args[0].split(','))
             lanes = self.shorthand_to_lanes(args[1].split(','))
             resp = self.get_card_text(kwargs['actor_id'], lists, lanes)
+            if isinstance(resp, str):
+                resp = {'message': resp}
             resp['answer'] = get_affirmation()
             return resp
 
@@ -117,6 +119,8 @@ class WekanHandler(BaseHandler):
             lists = self.shorthand_to_lists(args[0].split(','))
             lanes = self.shorthand_to_lanes(args[1].split(','))
             resp = self.get_card_buttons(kwargs['actor_id'], lists, lanes)
+            if isinstance(resp, str):
+                resp = {'message': resp}
             resp['answer'] = get_affirmation()
             return resp
 
@@ -415,7 +419,10 @@ class WekanHandler(BaseHandler):
 
             lists = [l['id'] for l in self.config['source_lists']]
             msg = self.get_card_text(reminder['actor'], lists, [])
-            msg['message'] = "Here is your daily task report:\n\n" + msg['message']
+            if isinstance(msg, dict):
+                msg['message'] = "Here is your daily task report:\n\n" + msg['message']
+                # only send if there are actual tasks, which is conveniently only the case if msg is a dict
+                send(msg, key=self.key, recipient_id=reminder['actor'] if 'actor' in reminder else None)
 
             send(msg, key=self.key, recipient_id=reminder['actor'] if 'actor' in reminder else None)
 
