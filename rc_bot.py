@@ -222,9 +222,21 @@ class RcHomeBot:
 
     def handle_inline_button(self, bot, message):
         reactions = message.data.get("reactions", {})
-        import pprint
-        pprint.pprint(reactions)
 
+        new_reaction = ""
+        actor_username = ""
+        for reaction, data in reactions.items():
+            users = data.get('usernames', [])
+            users.remove(self.bot.user.get("username", ""))
+            if len(users) == 1:
+                actor_username = users[0]
+                new_reaction = reaction
+
+        # TODO handle case where no new reaction is given
+
+
+        data_raw = message.data.get("attachments", [{}])[0].get("text", "{}")
+        data = json.loads(data_raw).get(new_reaction.strip(':'))
 
         permission = self.get_permissions(None)
         if permission not in PERMISSIONS:
@@ -233,58 +245,77 @@ class RcHomeBot:
         data = data.split('#', 1)
 
         if len(data) < 2:
-            query.answer("Something's wrong with this button.")
-            return
+            raise ValueError("something's wrong with this button")
 
         key = data[0]
         payload = data[1]
+        print(payload)
+
+        direct = message.is_direct()
+
+        message_id = message.data.get("_id")
+        actor_id = self.bot.api.users_info(username=actor_username).json().get('_id')
+        room_id = message.data.get("rid")
+        thread_id = message.data.get("tmid")
+        kwargs = {}
+        if thread_id:
+            kwargs['tmid'] = thread_id
+        combo_room_id = room_id
+        if thread_id:
+            combo_room_id = ';'.join([room_id, thread_id])
+        elif not direct:
+            combo_room_id = ';'.join([room_id, message_id])
 
         for handler in self.handlers:
             if handler.key == key:
                 answer = handler.handle_button(
                     payload,
                     db=self.db,
-                    message_id=query.message.message_id,
-                    actor_id=query.message.chat.id,
-                    permission=permission
+                    message_id=message_id,
+                    actor_id=actor_id,
+                    permission=permission,
+                    conversation_id=combo_room_id
                 )
+
+                import pprint
+                pprint.pprint(answer)
                 if isinstance(answer, dict):
                     if 'message' in answer or 'photo' in answer:
                         buttons = None
+                        text = answer.get('message', "")
                         if 'buttons' in answer:
+                            if not key:
+                                raise ValueError("Using inline buttons requires you to pass a key")
                             buttonlist, emoji, attachment = self.assemble_inline_buttons(answer['buttons'], key)
+                            kwargs['attachments'] = [attachment]
+                            text = '{}\n\n{}'.format(text, buttonlist)
+                        else:
+                            kwargs['attachments'] = []
+
                         if 'photo' in answer:
-                            context.bot.edit_message_media(
-                                chat_id=query.message.chat.id,
-                                message_id=query.message.message_id,
-                                reply_markup=buttons,
-                                media=InputMediaPhoto(
-                                    open(answer['photo'], 'rb'),
-                                    caption=answer.get('message', None),
-                                    parse_mode=answer.get('parse_mode')
-                                )
+                            sent_msg = self.bot.api.rooms_upload(room_id,
+                                                answer['photo'],
+                                                msg=text,
+                                                **kwargs,
                             )
                         else:
-                            try:
-                                context.bot.edit_message_text(
-                                    text=answer['message'],
-                                    reply_markup=buttons,
-                                    chat_id=query.message.chat.id,
-                                    message_id=query.message.message_id,
-                                    parse_mode=answer.get('parse_mode'),
-                                    attachments=[attachment],
-                                )
-                            except BadRequest as err: # Ignore "message is not modified"
-                                if "Message is not modified" not in err.message:
-                                    raise err
+                            sent_msg = self.bot.api.chat_update(
+                                room_id,
+                                message_id,
+                                text,
+                                **kwargs,
+                            )
                     if 'delete' in answer and answer['delete']:
-                        context.bot.delete_message(
-                            chat_id=query.message.chat.id,
-                            message_id=query.message.message_id
+                        print("Deleting {} in {}".format(room_id, message_id))
+                        r = self.bot.api.chat_delete(
+                            room_id=room_id,
+                            msg_id=message_id,
+                            **kwargs
                         )
-                    query.answer(answer['answer'])
+                        import pprint
+                        pprint.pprint(r.json())
                 else:
-                    query.answer(answer)
+                    message.reply_in_thread(answer)
 
     # Help command handler
     def handle_help(self, bot, message):
@@ -342,6 +373,8 @@ class RcHomeBot:
 
         t = threading.Thread(target=self.scheduler_run, args=[config['db']])
         t.start()
+
+        bot._verbosity = 3
 
         bot.add_handler(CommandHandler("help", self.handle_help))
 
