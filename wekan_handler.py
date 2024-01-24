@@ -420,11 +420,9 @@ class WekanHandler(BaseHandler):
             lists = [l['id'] for l in self.config['source_lists']]
             msg = self.get_card_text(reminder['actor'], lists, [])
             if isinstance(msg, dict):
-                msg['message'] = "Here is your daily task report:\n\n" + msg['message']
                 # only send if there are actual tasks, which is conveniently only the case if msg is a dict
+                msg['message'] = "Here is your daily task report:\n\n" + msg['message']
                 send(msg, key=self.key, recipient_id=reminder['actor'] if 'actor' in reminder else None)
-
-            send(msg, key=self.key, recipient_id=reminder['actor'] if 'actor' in reminder else None)
 
             reminder['next_message'] = self.get_next_reminder_date()
 

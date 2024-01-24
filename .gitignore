@@ -4,5 +4,7 @@ __pycache__
 *.db*
 venv
 venv*
+*venv
 
 config.yml
+config-*.yml
