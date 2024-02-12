@@ -2,6 +2,7 @@ from base_handler import *
 import requests
 from utils import PERM_ADMIN
 from utils import get_exclamation
+from PIL import Image
 
 UPDATE = 'UP'
 NOIMAGE = 'noimage.png'
@@ -11,7 +12,7 @@ class WebcamHandler(BaseHandler):
         super().__init__(config, messenger, "webcam", "Webcams")
         if 'webcam' in config:
             self.cams = config['webcam'].get('cams', [])
-            self.tmp_path = config['webcam'].get('tmp_path', '/tmp/campic')
+            self.tmp_path = config['webcam'].get('tmp_path', '/tmp/campic.jpg')
             self.enabled = True
         else:
             self.enabled = False
@@ -67,12 +68,14 @@ class WebcamHandler(BaseHandler):
         try:
             url = next(c['url'] for c in self.cams if c['name'] == cam)
             resp = requests.get(url, timeout=8)
-            with open(self.tmp_path, 'wb') as file:
+            with open("{}.jpg".format(self.tmp_path), 'wb') as file:
                 file.write(resp.content)
+            im = Image.open("{}.jpg".format(self.tmp_path))
+            im.save("{}.png".format(self.tmp_path))
 
             return {
                 'message': "{} camera".format(cam),
-                'photo': self.tmp_path,
+                'photo': "{}.png".format(self.tmp_path),
                 'buttons': buttons,
             }
         except requests.exceptions.ConnectionError:

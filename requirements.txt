@@ -6,3 +6,4 @@ dataset
 parsedatetime
 pyxdg
 matplotlib
+pillow
