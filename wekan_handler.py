@@ -39,6 +39,8 @@ class WekanHandler(BaseHandler):
             return True
         if m.startswith('do '):
             return True
+        if m.startswith('i do '):
+            return True
         if m.startswith('toggle task report'):
             return True
         return False
@@ -71,6 +73,14 @@ class WekanHandler(BaseHandler):
                 list_id = self.config['backlog_list']
             else:
                 task = message[3:]
+                list_id = self.config['default_list']
+            return self.create_card(kwargs['actor_id'], task, list_id, assign_to_me=True)
+        if m.startswith('i do'):
+            if m.startswith('i do eventually '):
+                task = message[16:]
+                list_id = self.config['backlog_list']
+            else:
+                task = message[5:]
                 list_id = self.config['default_list']
             return self.create_card(kwargs['actor_id'], task, list_id)
         if m.startswith('toggle task report'):
@@ -258,7 +268,7 @@ class WekanHandler(BaseHandler):
             return "{}! You've got no cards right now.".format(get_affirmation())
         return cards
 
-    def create_card(self, telegram_user, message, list_id):
+    def create_card(self, telegram_user, message, list_id, assign_to_me=False):
         wekan_user = [ u for u in self.config['users'] if u['telegram_id'] == telegram_user ]
         if len(wekan_user) != 1:
             return "{} I couldn't associate you with a wekan user.".format(get_exclamation())
@@ -270,10 +280,13 @@ class WekanHandler(BaseHandler):
             "swimlaneId": self.config['default_lane']
         }
 
+        if assign_to_me:
+            newcard['assignees'] = [wekan_user]
+
         card = self.call_api('boards/{}/lists/{}/cards'.format(self.config['board'], list_id), payload=newcard)
         buttons = []
 
-        if list_id == self.config['default_list']:
+        if list_id == self.config['default_list'] and not assign_to_me:
             for user in self.config['users']:
                 buttons.append([{
                     'text': 'Assign to {}'.format(user['name']),
