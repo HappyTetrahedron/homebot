@@ -74,7 +74,7 @@ class WekanHandler(BaseHandler):
             else:
                 task = message[3:]
                 list_id = self.config['default_list']
-            return self.create_card(kwargs['actor_id'], task, list_id, assign_to_me=True)
+            return self.create_card(kwargs['actor_id'], task, list_id)
         if m.startswith('i do'):
             if m.startswith('i do eventually '):
                 task = message[16:]
@@ -82,7 +82,7 @@ class WekanHandler(BaseHandler):
             else:
                 task = message[5:]
                 list_id = self.config['default_list']
-            return self.create_card(kwargs['actor_id'], task, list_id)
+            return self.create_card(kwargs['actor_id'], task, list_id, assign_to_me=True)
         if m.startswith('toggle task report'):
             return self.toggle_report(kwargs['actor_id'], kwargs['db'])
         elif any([m.endswith(' ' + it) for it in CARD_SYNONYMS]):
