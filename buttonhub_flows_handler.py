@@ -12,7 +12,7 @@ TRIGGER_FLOW = 'tr'
 SELECT_GROUP = 'sg'
 CANCEL = 'cancel'
 
-class ButtonhubHandler(BaseHandler):
+class ButtonhubFlowsHandler(BaseHandler):
     def __init__(self, config, messenger):
         super().__init__(config, messenger, "buttonhub", "Buttonhub")
         if 'buttonhub' in config:

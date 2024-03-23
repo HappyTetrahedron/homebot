@@ -21,7 +21,7 @@ import pc_handler
 import cavs_handler
 import webcam_handler
 import dice_handler
-import buttonhub_handler
+import buttonhub_flows_handler
 import list_preset_handler
 import wekan_handler
 
@@ -38,7 +38,7 @@ HANDLER_CLASSES = [
     grocery_handler.GroceryHandler,
     cavs_handler.CavsHandler,
     dice_handler.DiceHandler,
-    buttonhub_handler.ButtonhubHandler,
+    buttonhub_flows_handler.ButtonhubFlowsHandler,
     hue_handler.HueHandler,
     inventory_handler.InventoryHandler,
     list_preset_handler.ListPresetHandler,
