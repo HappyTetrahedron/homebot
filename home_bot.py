@@ -24,6 +24,7 @@ import dice_handler
 import buttonhub_flows_handler
 import buttonhub_battery_handler
 import buttonhub_lights_handler
+import buttonhub_climate_handler
 import list_preset_handler
 import wekan_handler
 
@@ -43,6 +44,7 @@ HANDLER_CLASSES = [
     buttonhub_flows_handler.ButtonhubFlowsHandler,
     buttonhub_battery_handler.ButtonhubBatteryHandler,
     buttonhub_lights_handler.ButtonhubLightsHandler,
+    buttonhub_climate_handler.ButtonhubClimateHandler,
     hue_handler.HueHandler,
     inventory_handler.InventoryHandler,
     list_preset_handler.ListPresetHandler,

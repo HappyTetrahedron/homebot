@@ -14,7 +14,7 @@ CANCEL = 'cancel'
 
 class ButtonhubFlowsHandler(BaseHandler):
     def __init__(self, config, messenger):
-        super().__init__(config, messenger, "buttonhub", "Buttonhub")
+        super().__init__(config, messenger, "buttonhub_flows", "Buttonhub Flows")
         if 'buttonhub' in config:
             self.base_url = config['buttonhub']['base_url']
             self.enabled = True

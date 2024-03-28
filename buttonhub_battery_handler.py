@@ -7,7 +7,7 @@ from utils import PERM_ADMIN
 
 class ButtonhubBatteryHandler(BaseHandler):
     def __init__(self, config, messenger):
-        super().__init__(config, messenger, "buttonhub", "Buttonhub")
+        super().__init__(config, messenger, "buttonhub_battery", "Buttonhub Batteries")
         if 'buttonhub' in config:
             self.base_url = config['buttonhub']['base_url']
             self.enabled = True

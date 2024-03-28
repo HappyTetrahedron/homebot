@@ -7,7 +7,7 @@ from utils import PERM_ADMIN
 
 class ButtonhubLightsHandler(BaseHandler):
     def __init__(self, config, messenger):
-        super().__init__(config, messenger, "buttonhub", "Buttonhub")
+        super().__init__(config, messenger, "buttonhub_lights", "Buttonhub Lights")
         self.base_url = None
         self.enabled = False
         if 'buttonhub' in config:
