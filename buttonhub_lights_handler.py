@@ -13,7 +13,8 @@ class ButtonhubLightsHandler(BaseHandler):
         if 'buttonhub' in config:
             self.base_url = config['buttonhub']['base_url']
             self.lights = config['buttonhub'].get('lights')
-            self.enabled = self.lights and self.base_url
+            self.rooms = config['buttonhub'].get('rooms')
+            self.enabled = self.lights and self.rooms and self.base_url
 
     def help(self, permission):
         if not self.enabled:
@@ -39,7 +40,6 @@ class ButtonhubLightsHandler(BaseHandler):
 
 
     def check_lights(self):
-        rooms = self.lights['rooms']
         default_field = self.lights['default_field']
         default_on_state = self.lights['default_on_state']
 
@@ -47,8 +47,8 @@ class ButtonhubLightsHandler(BaseHandler):
             lights_on_in = []
 
             buttonhub_state = self._get_state()
-            for room in rooms:
-                for device in room['devices']:
+            for room in self.rooms:
+                for device in room['lights']:
                     device_name = device['name']
                     is_on = (buttonhub_state.get(device_name) or {}).get(default_field) == default_on_state
                     if is_on:
