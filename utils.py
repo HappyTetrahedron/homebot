@@ -28,16 +28,23 @@ AFFIRMATIONS = [
     "Brilliant",
     "Cool beans",
     "Sweet",
+    "Marvelous",
+    "Amazing",
+    "Jolly good",
+    "Great",
 ]
 
 EXCLAMATIONS = [
     "Oh no!",
+    "Oh dear!",
+    "Bummer!",
     "Yikes!",
     "Aww...",
     "Damn...",
     "Aw no!",
     ">.<",
     "Whoopsie!",
+    "Oh oh...",
 ]
 
 GENERIC_RESPONSES = [
@@ -54,6 +61,18 @@ GENERIC_RESPONSES = [
     "Oh, can you repeat that?",
     "No way!",
     "I knew it!",
+    "huh, interesting",
+    "Who knew?",
+    "Indeed",
+    "Quite so",
+    "So the rumors are true",
+    "but why?",
+    "As foretold!",
+    "As it was written",
+    "That makes sense",
+    "Very well",
+    "Noted",
+    "I shall consider that",
 ]
 
 
