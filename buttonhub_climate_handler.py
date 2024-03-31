@@ -5,6 +5,8 @@ import requests
 
 from utils import PERM_ADMIN
 
+UPDATE_LIST = 'up'
+
 class ButtonhubClimateHandler(BaseHandler):
     def __init__(self, config, messenger):
         super().__init__(config, messenger, "buttonhub_climate", "Buttonhub Climate")
@@ -61,9 +63,20 @@ class ButtonhubClimateHandler(BaseHandler):
                     room_states.append(room['name'] + ':\n' + ('\n'.join(room_state)))
 
             if not room_states:
-                return 'No sensor readings found'
-
-            return '\n\n'.join(room_states)
+                message = 'No sensor readings found'
+            else:
+                message = '\n\n'.join(room_states)
+            return {
+                'message': message,
+                'buttons': [
+                    [
+                        {
+                            'text': 'Update',
+                            'data': UPDATE_LIST,
+                        }
+                    ]
+                ],
+            }
         except HTTPError:
             return {
                 'message': 'Failed to check climate :/',
@@ -79,3 +92,10 @@ class ButtonhubClimateHandler(BaseHandler):
         response = requests.get(f'{self.base_url}/state', timeout=5)
         response.raise_for_status()
         return response.json()
+
+    def handle_button(self, data, **kwargs):
+        if data == UPDATE_LIST:
+            msg = self.check_climate()
+            msg['answer'] = "Updated."
+            return msg
+        return "Uh oh, something is off"

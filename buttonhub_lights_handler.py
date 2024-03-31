@@ -5,6 +5,9 @@ import requests
 
 from utils import PERM_ADMIN
 
+
+UPDATE_LIST = 'up'
+
 class ButtonhubLightsHandler(BaseHandler):
     def __init__(self, config, messenger):
         super().__init__(config, messenger, "buttonhub_lights", "Buttonhub Lights")
@@ -56,9 +59,20 @@ class ButtonhubLightsHandler(BaseHandler):
                         break
 
             if not lights_on_in:
-                return 'No lights are on'
-
-            return 'Lights are on in:\n- ' + '\n- '.join(lights_on_in)
+                message = 'No lights are on'
+            else:
+                message = 'Lights are on in:\n- ' + '\n- '.join(lights_on_in)
+            return {
+                'message': message,
+                'buttons': [
+                    [
+                        {
+                            'text': 'Update',
+                            'data': UPDATE_LIST,
+                        }
+                    ]
+                ],
+            }
         except HTTPError:
             return {
                 'message': 'Failed to check lights :/',
@@ -74,3 +88,10 @@ class ButtonhubLightsHandler(BaseHandler):
         response = requests.get(f'{self.base_url}/state', timeout=5)
         response.raise_for_status()
         return response.json()
+
+    def handle_button(self, data, **kwargs):
+        if data == UPDATE_LIST:
+            msg = self.check_lights()
+            msg['answer'] = "Updated."
+            return msg
+        return "Uh oh, something is off"
