@@ -5,6 +5,8 @@ import requests
 
 from utils import PERM_ADMIN
 
+UPDATE_LIST = 'up'
+
 class ButtonhubBatteryHandler(BaseHandler):
     def __init__(self, config, messenger):
         super().__init__(config, messenger, "buttonhub_battery", "Buttonhub Batteries")
@@ -59,12 +61,23 @@ class ButtonhubBatteryHandler(BaseHandler):
                     )
 
             if not battery_status:
-                return 'No devices found'
-
-            return '\n'.join([
-                '{}: {}%'.format(s['device'], s['battery'])
-                for s in battery_status
-            ])
+                message = 'No devices found'
+            else:
+                message = '\n'.join([
+                    '{}: {}%'.format(s['device'], s['battery'])
+                    for s in battery_status
+                ])
+            return {
+                'message': message,
+                'buttons': [
+                    [
+                        {
+                            'text': 'Update',
+                            'data': UPDATE_LIST,
+                        }
+                    ]
+                ],
+            }
         except HTTPError:
             return {
                 'message': 'Failed to check batteries :/',
@@ -85,3 +98,10 @@ class ButtonhubBatteryHandler(BaseHandler):
         response = requests.get(f'{self.base_url}/status', timeout=5)
         response.raise_for_status()
         return response.json()
+
+    def handle_button(self, data, **kwargs):
+        if data == UPDATE_LIST:
+            msg = self.check_batteries()
+            msg['answer'] = "Updated."
+            return msg
+        return "Uh oh, something is off"
