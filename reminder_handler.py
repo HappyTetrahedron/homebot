@@ -291,7 +291,7 @@ class ReminderHandler(BaseHandler):
 
     def create_onetime_reminder(self, time_string, subject, separator_word, actor_id):
         now = datetime.datetime.now()
-        date_time, parsed = calendar.parseDT(time_string)
+        date_time, parsed = self.parse_datetime(time_string)
         if parsed == 0:
             return "Sorry, I don't understand what you mean by \"{}\".".format(time_string)
         if parsed == 1:
@@ -311,6 +311,12 @@ class ReminderHandler(BaseHandler):
         }
         return reminder
 
+    @staticmethod
+    def parse_datetime(time_string: str):
+        if re.match("^at ([1-9]|1[0-2])$", time_string):
+            time_string = time_string + ":00"
+        date_time, parsed = calendar.parseDT(time_string)
+        return date_time, parsed
 
     def copy_periodic_to_onetime_and_rewind(self, periodic_reminder):
         if not periodic_reminder['periodic']:
