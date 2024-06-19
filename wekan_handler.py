@@ -3,6 +3,7 @@ import requests
 from dateutil import parser
 import datetime
 import logging
+import random
 from utils import PERM_ADMIN
 from utils import get_exclamation
 from utils import get_affirmation
@@ -13,7 +14,14 @@ MARK_DONE = 'md'
 DISMISS_LIST = 'rm'
 REMOVE_BUTTONS = 'rd'
 UPDATE = 'up'
+BUMP = 'b'
+SEND_BUMP_LIST = 'sb'
 ASSIGN = 'ass'
+
+BUMP_1_DAY = "d"
+BUMP_1_WEEK = "w"
+BUMP_1_MONTH = "m"
+BUMP_WHENEVER = "?"
 
 CARD_SYNONYMS = ['cards', 'todos', 'tasks'] # all 5 characters - if any of different length are introduced fix code below!
 
@@ -134,6 +142,16 @@ class WekanHandler(BaseHandler):
             resp['answer'] = get_affirmation()
             return resp
 
+        if cmd == SEND_BUMP_LIST:
+            args = data[1].split(':')
+            lists = self.shorthand_to_lists(args[0].split(','))
+            lanes = self.shorthand_to_lanes(args[1].split(','))
+            resp = self.get_card_bump_buttons(kwargs['actor_id'], lists, lanes)
+            if isinstance(resp, str):
+                resp = {'message': resp}
+            resp['answer'] = get_affirmation()
+            return resp
+
         if cmd == MARK_DONE:
             args = data[1].split(':')
             lists = self.shorthand_to_lists(args[1].split(','))
@@ -176,6 +194,41 @@ class WekanHandler(BaseHandler):
                 'answer': get_affirmation(),
             }
 
+        if cmd == BUMP:
+            args = data[1].split(':')
+            lists = self.shorthand_to_lists(args[2].split(','))
+            lanes = self.shorthand_to_lanes(args[3].split(','))
+            card_shorthand = args[1]
+            bump_code = args[0]
+            card_id, list_id = self.shorthand_to_card(card_shorthand)
+
+            now = datetime.datetime.now()
+            morning = datetime.datetime(year=now.year, month=now.month, day=now.day, hour=2)
+            start_date = morning + (datetime.timedelta(days=1) if bump_code == BUMP_1_DAY else \
+                                   (datetime.timedelta(days=7) if bump_code == BUMP_1_WEEK else \
+                                   (datetime.timedelta(days=30) if bump_code == BUMP_1_MONTH else
+                                   (datetime.timedelta(days=random.randint(3,30))))))
+
+            print(start_date.strftime("%Y-%m-%dT%H:%M:%S.000Z"))
+            timestamp = start_date.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+            payload = {
+                'listId': self.config['backlog_list'],
+                'startAt': timestamp,
+            }
+
+            self.call_api('boards/{}/lists/{}/cards/{}'.format(self.config['board'], list_id, card_id), payload, method='PUT')
+
+            resp = self.get_card_bump_buttons(kwargs['actor_id'], lists, lanes)
+            if isinstance(resp, str):
+                return {
+                    'message': resp,
+                    'answer': get_affirmation(),
+                }
+
+            resp['answer'] = get_affirmation()
+            return resp
+
 
 
     def get_card_text(self, telegram_user, lists, lanes):
@@ -209,8 +262,57 @@ class WekanHandler(BaseHandler):
                 'data': '{}:{}:{}'.format(UPDATE, ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
             },
             {
+                'text': "Bounce",
+                'data': '{}:{}:{}'.format(SEND_BUMP_LIST, ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+            },
+            {
                 'text': "Done",
                 'data': '{}:{}:{}'.format(DISMISS_LIST, ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+            },
+        ])
+
+        return {
+            'message': "I found the following cards:",
+            'buttons': buttons,
+        }
+
+    def get_card_bump_buttons(self, telegram_user, lists, lanes):
+        cards = self.get_my_cards(telegram_user, lists, lanes)
+        if isinstance(cards, str):
+            return cards
+        buttons = []
+        for li, cardlist in cards.items():
+            for card in cardlist:
+                buttons.append([{
+                    'text': card['title'],
+                    'data': '{}:{}:{}:{}'.format(MARK_DONE, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+                }])
+                buttons.append([
+                    {
+                        'text': "+1d",
+                        'data': '{}:{}:{}:{}:{}'.format(BUMP, BUMP_1_DAY, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+                    },
+                    {
+                        'text': "+1w",
+                        'data': '{}:{}:{}:{}:{}'.format(BUMP, BUMP_1_WEEK, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+                    },
+                    {
+                        'text': "+1m",
+                        'data': '{}:{}:{}:{}:{}'.format(BUMP, BUMP_1_MONTH, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+                    },
+                    {
+                        'text': "🌈",
+                        'data': '{}:{}:{}:{}:{}'.format(BUMP, BUMP_WHENEVER, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+                    },
+                ])
+        buttons.append([
+            {
+                'text': "Update",
+                'data': '{}:{}:{}'.format(SEND_BUMP_LIST, ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+            },
+            {
+                'text': "Back",
+                'data': '{}:{}:{}'.format(UPDATE, ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
             }
         ])
 
