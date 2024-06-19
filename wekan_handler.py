@@ -98,12 +98,12 @@ class WekanHandler(BaseHandler):
             l = m[:-6] # IMPORTANT this only happens to work by chance since all synonyms are 5 characters
             lanes = []
             for lane in self.config['lanes']:
-                for name in lane['names']:
+                for name in lane.get('names', []):
                     if name in l:
                         lanes.append(lane['id'])
             lists = []
             for list_ in self.config['source_lists']:
-                for name in list_['names']:
+                for name in list_.get('names', []):
                     if name in l:
                         lists.append(list_['id'])
             if not lanes and not lists:
@@ -361,7 +361,7 @@ class WekanHandler(BaseHandler):
         lane_prefix = ""
         lane_suffix = ""
         for lane in self.config["lanes"]:
-            if lane["id"] == card["swimlaneId"]:
+            if lane["id"] == card.get("swimlaneId", "invalid"):
                 lane_prefix = lane.get("prefix", "")
                 lane_suffix = lane.get("suffix", "")
         return "{}{} {} {}{}".format(list_prefix, lane_prefix, card['title'], lane_suffix, list_suffix).strip()
