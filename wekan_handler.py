@@ -15,6 +15,7 @@ DISMISS_LIST = 'rm'
 REMOVE_BUTTONS = 'rd'
 UPDATE = 'up'
 BUMP = 'b'
+PROGRESS = 'p'
 SEND_BUMP_LIST = 'sb'
 ASSIGN = 'ass'
 
@@ -175,6 +176,30 @@ class WekanHandler(BaseHandler):
             resp['answer'] = get_affirmation()
             return resp
 
+        if cmd == PROGRESS:
+            args = data[1].split(':')
+            lists = self.shorthand_to_lists(args[1].split(','))
+            lanes = self.shorthand_to_lanes(args[2].split(','))
+            card_shorthand = args[0]
+            card_id, list_id = self.shorthand_to_card(card_shorthand)
+
+            payload = {
+                'listId': self.config['inprogress_list']
+            }
+
+            self.call_api('boards/{}/lists/{}/cards/{}'.format(self.config['board'], list_id, card_id), payload, method='PUT')
+
+            resp = self.get_card_bump_buttons(kwargs['actor_id'], lists, lanes)
+            if isinstance(resp, str):
+                return {
+                    'message': resp,
+                    'answer': get_affirmation(),
+                }
+
+            resp['answer'] = get_affirmation()
+            return resp
+
+
         if cmd == ASSIGN:
             args = data[1].split(':')
             user_id = args[0]
@@ -237,7 +262,7 @@ class WekanHandler(BaseHandler):
             return cards
 
         msg = {
-            'message': '\n'.join([ '\n'.join([c['title'] for c in subcards]) for subcards in cards.values() ]),
+            'message': '\n'.join([ '\n'.join([self.format_card_name(c, li) for c in subcards]) for li, subcards in cards.items() ]),
             'buttons': [[{
                 'text': "Expand",
                 'data': '{}:{}:{}'.format(UPDATE, ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
@@ -253,7 +278,7 @@ class WekanHandler(BaseHandler):
         for li, cardlist in cards.items():
             for card in cardlist:
                 buttons.append([{
-                    'text': card['title'],
+                    'text': self.format_card_name(card, li),
                     'data': '{}:{}:{}:{}'.format(MARK_DONE, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
                 }])
         buttons.append([
@@ -284,10 +309,14 @@ class WekanHandler(BaseHandler):
         for li, cardlist in cards.items():
             for card in cardlist:
                 buttons.append([{
-                    'text': card['title'],
+                    'text': self.format_card_name(card, li),
                     'data': '{}:{}:{}:{}'.format(MARK_DONE, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
                 }])
                 buttons.append([
+                    {
+                        'text': "▶️",
+                        'data': '{}:{}:{}:{}'.format(PROGRESS, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+                    },
                     {
                         'text': "+1d",
                         'data': '{}:{}:{}:{}:{}'.format(BUMP, BUMP_1_DAY, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
@@ -321,6 +350,21 @@ class WekanHandler(BaseHandler):
             'buttons': buttons,
         }
 
+
+    def format_card_name(self, card, listId):
+        list_prefix = ""
+        list_suffix = ""
+        for source in self.config["source_lists"]:
+            if source["id"] == listId:
+                list_prefix = source.get("prefix", "")
+                list_suffix = source.get("suffix", "")
+        lane_prefix = ""
+        lane_suffix = ""
+        for lane in self.config["lanes"]:
+            if lane["id"] == card["swimlaneId"]:
+                lane_prefix = lane.get("prefix", "")
+                lane_suffix = lane.get("suffix", "")
+        return "{}{} {} {}{}".format(list_prefix, lane_prefix, card['title'], lane_suffix, list_suffix).strip()
 
     def get_my_cards(self, telegram_user, lists, lanes):
         wekan_user = [ u for u in self.config['users'] if u['telegram_id'] == telegram_user ]
