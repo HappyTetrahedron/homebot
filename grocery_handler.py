@@ -1,3 +1,5 @@
+import re
+
 from base_handler import *
 import datetime
 
@@ -8,6 +10,13 @@ name = "Grocery Lists"
 
 REMOVE_ITEM = 'rm'
 UPDATE_LIST = 'up'
+
+SINGLE_WORD_PATTERN = re.compile('^\S+$', flags=re.I)
+
+
+def is_single_word(string):
+    return SINGLE_WORD_PATTERN.match(string)
+
 
 class GroceryHandler(BaseHandler):
 
@@ -36,12 +45,17 @@ class GroceryHandler(BaseHandler):
             }
 
 
-    def matches_message(self, message):
+    def advanced_matches_message(self, message):
         l = message.lower()
-        return any([any([l.startswith(prefix) for prefix in x['add_prefices']])
+        if any([any([l.startswith(prefix) for prefix in x['add_prefices']])
                     or any([l.startswith(prefix) for prefix in x['show_prefices']])
-                    for x in self.lists])
+                    for x in self.lists]):
+            return MATCH_YUP
 
+        if is_single_word(l):
+            return MATCH_EH
+
+        return MATCH_NOPE
 
     def handle(self, message, **kwargs):
         db = kwargs['db']
@@ -60,6 +74,15 @@ class GroceryHandler(BaseHandler):
                     return self.grocery_list(db, list_type['name'])
                 else:
                     return "Sorry, you don't get to see this list."
+
+        if is_single_word(l):
+            list_type = self.lists[0]
+            if ('users' in list_type and str(kwargs['actor_id']) in list_type['users']) \
+                    or ('users' not in list_type and kwargs['permission'] >= PERM_ADMIN):
+                return self.add_item(message, db, list_type['name'])
+            else:
+                return "No."
+
         return "Whoopsie, this never happens"
 
 

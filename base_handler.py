@@ -1,3 +1,7 @@
+MATCH_YUP = 'yup'
+MATCH_EH = 'eh'
+MATCH_NOPE = 'nope'
+
 class BaseHandler:
     def __init__(self, config, messenger, key, name):
         self._config = config
@@ -18,6 +22,11 @@ class BaseHandler:
 
     def matches_message(self, message):
         return False
+
+    def advanced_matches_message(self, message):
+        if self.matches_message(message):
+            return MATCH_YUP
+        return MATCH_NOPE
 
     def handle(self, message, **kwargs):
         pass

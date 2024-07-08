@@ -27,8 +27,9 @@ import buttonhub_lights_handler
 import buttonhub_climate_handler
 import list_preset_handler
 import wekan_handler
+from base_handler import MATCH_YUP, MATCH_EH
 
-from utils import get_affirmation, get_generic_response
+from utils import get_generic_response
 from utils import PERMISSIONS, PERM_ADMIN, PERM_OWNER, PERM_USER
 
 
@@ -150,19 +151,32 @@ class HomeBot:
         if permission not in PERMISSIONS:
             update.message.reply_text("You're not my master. I won't talk to you!")
             return
-        for handler in self.handlers:
-            key = handler.key
-            if update.message.text is not None:
-                if handler.matches_message(update.message.text):
-                    reply = handler.handle(update.message.text,
-                                           db=self.db,
-                                           message_id=update.message.message_id,
-                                           actor_id=update.message.from_user.id,
-                                           permission=permission)
-                    self.send_message(reply, handler.key, recipient_id=update.message.from_user.id)
-                    return
 
-        update.message.reply_text(get_generic_response())
+        best_handler = None
+        for handler in self.handlers:
+            if update.message.text is not None:
+                match = handler.advanced_matches_message(update.message.text)
+                if match == MATCH_YUP:
+                    best_handler = handler
+                    break
+                if match == MATCH_EH:
+                    if best_handler is None:
+                        best_handler = handler
+                    else:
+                        best_handler = None
+                        break
+
+        if best_handler:
+            reply = best_handler.handle(
+                update.message.text,
+                db=self.db,
+                message_id=update.message.message_id,
+                actor_id=update.message.from_user.id,
+                permission=permission,
+            )
+            self.send_message(reply, best_handler.key, recipient_id=update.message.from_user.id)
+        else:
+            update.message.reply_text(get_generic_response())
 
     def handle_inline_button(self, update, context):
         query = update.callback_query
