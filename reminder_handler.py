@@ -423,20 +423,25 @@ class ReminderHandler(BaseHandler):
         debug = self._debug
         table = db['reminders']
         send = self._messenger.send_message
-        if debug:
-            logger.info("Querying reminders...")
-
         now = datetime.datetime.now()
+        if debug:
+            logger.info("Querying reminders for {}...".format(now))
+
         reminders = db.query('SELECT * FROM reminders WHERE active IS TRUE AND next < :now', now=now)
 
         count = 0
         for reminder in reminders:
-            count += 1
-            if debug:
-                logger.info("Sending reminder {}".format(count))
             # this is so stupid I can't even
             # dataset returns dates as string but only accepts them as datetime
             reminder['next'] = datetime.datetime.strptime(reminder['next'], '%Y-%m-%d %H:%M:%S.%f')
+
+            # I don't know WHY the query sometimes returns reminders from the future, but I blame dataset.
+            if reminder['next'] >= now:
+                continue
+
+            count += 1
+            if debug:
+                logger.info("Sending reminder {} ({})".format(count, reminder['subject']))
 
             msg = self.reminder_to_string(reminder)
 
