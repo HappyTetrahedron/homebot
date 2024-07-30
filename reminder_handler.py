@@ -435,10 +435,6 @@ class ReminderHandler(BaseHandler):
             # dataset returns dates as string but only accepts them as datetime
             reminder['next'] = datetime.datetime.strptime(reminder['next'], '%Y-%m-%d %H:%M:%S.%f')
 
-            # I don't know WHY the query sometimes returns reminders from the future, but I blame dataset.
-            if reminder['next'] >= now:
-                continue
-
             count += 1
             if debug:
                 logger.info("Sending reminder {} ({})".format(count, reminder['subject']))

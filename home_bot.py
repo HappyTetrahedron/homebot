@@ -3,6 +3,7 @@
 import threading
 
 import yaml
+import datetime
 import logging
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
@@ -330,6 +331,15 @@ class HomeBot:
                     handler.run_periodically(self.periodic_db)
                 except Exception as e:
                     logger.error("Exception on scheduler thread with handler {}".format(handler.key))
+                    logger.exception(e)
+            if datetime.datetime.now().minute == 0:
+                try:
+                    r = self.periodic_db.query("PRAGMA main.wal_checkpoint(FULL);")
+                    if self.config['debug']:
+                        for row in r:
+                            logger.info("WAL checkpoint: busy flag {}, {} logged to WAL, {} checkpointed.".format(row['busy'], row['log'], row['checkpointed']))
+                except Exception as e:
+                    logger.error("Exception on scheduler thread during WAL checkpoint")
                     logger.exception(e)
             try:
                 self.exit.wait(60)
