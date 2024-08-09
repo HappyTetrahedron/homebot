@@ -26,6 +26,7 @@ import buttonhub_flows_handler
 import buttonhub_battery_handler
 import buttonhub_lights_handler
 import buttonhub_climate_handler
+import moat_cats_handler
 import list_preset_handler
 import wekan_handler
 from base_handler import MATCH_YUP, MATCH_EH
@@ -47,6 +48,7 @@ HANDLER_CLASSES = [
     buttonhub_battery_handler.ButtonhubBatteryHandler,
     buttonhub_lights_handler.ButtonhubLightsHandler,
     buttonhub_climate_handler.ButtonhubClimateHandler,
+    moat_cats_handler.MoatCatsHandler,
     hue_handler.HueHandler,
     inventory_handler.InventoryHandler,
     list_preset_handler.ListPresetHandler,
