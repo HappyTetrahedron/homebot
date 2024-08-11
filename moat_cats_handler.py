@@ -65,13 +65,15 @@ class MoatCatsHandler(BaseHandler):
             need_feeding = status['need_feeding']
 
             replies = POSITIVE_REPLIES if need_feeding else NEGATIVE_REPLIES
-            message = "The cats have last been fed at {}.\n{}".format(
-                last_fed.strftime("%H:%M"),
-                random.choice(replies),
-            )
+            messages = []
+            try:
+                messages.append("The cats have last been fed at {}".format(last_fed.strftime("%H:%M")))
+            except ValueError:
+                pass
+            messages.append(random.choice(replies))
 
             return {
-                'message': message,
+                'message': '\n'.join(messages),
             }
         except HTTPError:
             return {
