@@ -1,6 +1,7 @@
 from requests import HTTPError
 
 from base_handler import *
+import datetime
 import requests
 
 from utils import PERM_ADMIN
@@ -12,6 +13,7 @@ class ButtonhubBatteryHandler(BaseHandler):
         super().__init__(config, messenger, "buttonhub_battery", "Buttonhub Batteries")
         if 'buttonhub' in config:
             self.base_url = config['buttonhub']['base_url']
+            self.config = config['buttonhub']['batteries']
             self.enabled = True
         else:
             self.base_url = None
@@ -42,23 +44,7 @@ class ButtonhubBatteryHandler(BaseHandler):
 
     def check_batteries(self):
         try:
-            battery_status = []
-
-            buttonhub_state = self._get_state()
-            for device, value in buttonhub_state.items():
-                battery = value.get('battery')
-                if battery:
-                    battery_status.append(
-                        {'device': device.replace('zigbee2mqtt/', ''), 'battery': battery}
-                    )
-
-            buttonhub_status = self._get_status()
-            for device, value in buttonhub_status.get('devices', {}).items():
-                battery = value.get('battery')
-                if battery:
-                    battery_status.append(
-                        {'device': device, 'battery': battery}
-                    )
+            battery_status = self._get_battery_status()
 
             if not battery_status:
                 message = 'No devices found'
@@ -99,9 +85,57 @@ class ButtonhubBatteryHandler(BaseHandler):
         response.raise_for_status()
         return response.json()
 
+    def _get_battery_status(self):
+        battery_status = []
+
+        buttonhub_state = self._get_state()
+        for device, value in buttonhub_state.items():
+            battery = value.get('battery')
+            if battery:
+                battery_status.append(
+                    {'device': device.replace('zigbee2mqtt/', ''), 'battery': int(battery)}
+                )
+
+        buttonhub_status = self._get_status()
+        for device, value in buttonhub_status.get('devices', {}).items():
+            battery = value.get('battery')
+            if battery:
+                battery_status.append(
+                    {'device': device, 'battery': int(battery)}
+                )
+
+        return battery_status
+
     def handle_button(self, data, **kwargs):
         if data == UPDATE_LIST:
             msg = self.check_batteries()
             msg['answer'] = "Updated."
             return msg
         return "Uh oh, something is off"
+
+    def run_periodically(self, db):
+        if not self.enabled:
+            return
+        now = datetime.datetime.now()
+        if now.hour != self.config['hour'] or now.minute != 0:
+            return
+
+        threshold = self.config['warning_threshold']
+
+        battery_status = self._get_battery_status()
+        endangered_devices = [
+            device for device in battery_status if device['battery'] <= threshold
+        ]
+        if not endangered_devices:
+            return
+
+        send = self._messenger.send_message
+        if len(endangered_devices) == 1:
+            device = endangered_devices[0]
+            message = "{} is low on battery ({}%)".format(device['device'], device['battery'])
+        else:
+            message = "There are devices low on battery:"
+            for device in endangered_devices:
+                message = message + "\n- {} ({}%)".format(device['device'], device['battery'])
+        for user in self.config['users']:
+            send(message, recipient_id=user)
