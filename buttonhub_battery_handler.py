@@ -75,16 +75,6 @@ class ButtonhubBatteryHandler(BaseHandler):
                 'answer': 'Error!',
             }
 
-    def _get_state(self):
-        response = requests.get(f'{self.base_url}/state', timeout=5)
-        response.raise_for_status()
-        return response.json()
-
-    def _get_status(self):
-        response = requests.get(f'{self.base_url}/status', timeout=5)
-        response.raise_for_status()
-        return response.json()
-
     def _get_battery_status(self):
         battery_status = []
 
@@ -92,19 +82,19 @@ class ButtonhubBatteryHandler(BaseHandler):
         for device, value in buttonhub_state.items():
             battery = value.get('battery')
             if battery:
+                device_name = device
+                if '/' in device_name:
+                    device_name = device_name.split('/')[1]
                 battery_status.append(
-                    {'device': device.replace('zigbee2mqtt/', ''), 'battery': int(battery)}
-                )
-
-        buttonhub_status = self._get_status()
-        for device, value in buttonhub_status.get('devices', {}).items():
-            battery = value.get('battery')
-            if battery:
-                battery_status.append(
-                    {'device': device, 'battery': int(battery)}
+                    {'device': device_name, 'battery': int(battery)}
                 )
 
         return battery_status
+
+    def _get_state(self):
+        response = requests.get(f'{self.base_url}/state', timeout=5)
+        response.raise_for_status()
+        return response.json()
 
     def handle_button(self, data, **kwargs):
         if data == UPDATE_LIST:
