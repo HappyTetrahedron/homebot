@@ -89,6 +89,8 @@ class ButtonhubBatteryHandler(BaseHandler):
                     {'device': device_name, 'battery': int(battery)}
                 )
 
+        battery_status.sort(key=lambda entry: entry['device'])
+
         return battery_status
 
     def _get_state(self):
