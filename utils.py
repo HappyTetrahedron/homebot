@@ -32,6 +32,10 @@ AFFIRMATIONS = [
     "Amazing",
     "Jolly good",
     "Great",
+    "Swell",
+    "Gorgeous",
+    "Fantastic",
+    "no cap fr fr",
 ]
 
 EXCLAMATIONS = [
@@ -45,6 +49,7 @@ EXCLAMATIONS = [
     ">.<",
     "Whoopsie!",
     "Oh oh...",
+    "!!!",
 ]
 
 GENERIC_RESPONSES = [
@@ -73,6 +78,13 @@ GENERIC_RESPONSES = [
     "Very well",
     "Noted",
     "I shall consider that",
+    "yeah, sure, whatever",
+    "hmm?",
+    "That checks out",
+    "I had no idea!",
+    "Indubitably",
+    "???",
+    "I thought so too",
 ]
 
 
