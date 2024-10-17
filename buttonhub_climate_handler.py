@@ -52,10 +52,10 @@ class ButtonhubClimateHandler(BaseHandler):
                     device_state = (buttonhub_state.get(device_name) or {})
                     temperature = device_state.get('temperature')
                     if temperature is not None:
-                        room_state.append(f'- Temperature: {temperature}°C')
+                        room_state.append(f'- Temperature: {round(temperature, 1)}°C')
                     humidity = device_state.get('humidity')
                     if humidity is not None:
-                        room_state.append(f'- Humidity: {humidity}%')
+                        room_state.append(f'- Humidity: {round(humidity, 1)}%')
                     pm25 = device_state.get('pm25')
                     if pm25 is not None:
                         room_state.append(f'- PM2.5: {pm25}')
