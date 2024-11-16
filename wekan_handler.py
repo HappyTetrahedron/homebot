@@ -202,7 +202,7 @@ class WekanHandler(BaseHandler):
             self.wekan_service.assign_card(list_id, card_id, telegram_user_id)
 
             return {
-                'message': f"{get_affirmation()}! I created the new task for you and assigned it to f{name}.",
+                'message': f"{get_affirmation()}! I created the new task for you and assigned it to {name}.",
                 'answer': get_affirmation(),
             }
 

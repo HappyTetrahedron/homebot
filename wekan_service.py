@@ -124,7 +124,7 @@ class WekanService:
     def _get_wekan_user(self, telegram_user_id):
         if not self.enabled:
             return None
-        wekan_user = [u for u in self.config['users'] if u['telegram_id'] == telegram_user_id]
+        wekan_user = [u for u in self.config['users'] if str(u['telegram_id']) == str(telegram_user_id)]
         if len(wekan_user) != 1:
             return None
         return wekan_user[0]
