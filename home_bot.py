@@ -14,12 +14,10 @@ import dataset
 
 import inventory_handler
 import reminder_handler
-import hue_handler
 import grocery_handler
 import weather_handler
 import trains_handler
 import pc_handler
-import cavs_handler
 import webcam_handler
 import dice_handler
 import buttonhub_flows_handler
@@ -42,14 +40,12 @@ logger = logging.getLogger(__name__)
 
 HANDLER_CLASSES = [
     grocery_handler.GroceryHandler,
-    cavs_handler.CavsHandler,
     dice_handler.DiceHandler,
     buttonhub_flows_handler.ButtonhubFlowsHandler,
     buttonhub_battery_handler.ButtonhubBatteryHandler,
     buttonhub_lights_handler.ButtonhubLightsHandler,
     buttonhub_climate_handler.ButtonhubClimateHandler,
     moat_cats_handler.MoatCatsHandler,
-    hue_handler.HueHandler,
     inventory_handler.InventoryHandler,
     list_preset_handler.ListPresetHandler,
     pc_handler.PCHandler,
