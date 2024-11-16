@@ -53,8 +53,8 @@ AUTO_REFRESH_CONNECTIONS = "ars"
 STOP_AUTO_REFRESH = "sar"
 
 class TrainsHandler(BaseHandler):
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "zvv", "Train connections")
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key="zvv", name="Train connections")
         self.config = config['trains']
 
 

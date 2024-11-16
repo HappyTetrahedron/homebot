@@ -8,8 +8,8 @@ from utils import PERM_ADMIN
 UPDATE_LIST = 'up'
 
 class ButtonhubClimateHandler(BaseHandler):
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "buttonhub_climate", "Buttonhub Climate")
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key="buttonhub_climate", name="Buttonhub Climate")
         self.base_url = None
         self.enabled = False
         if 'buttonhub' in config:

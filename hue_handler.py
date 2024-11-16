@@ -87,8 +87,8 @@ COLORS = {
 
 class HueHandler(BaseHandler):
 
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "hue", "Light Control")
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key="hue", name="Light Control")
         if 'hue' in config:
             self.hue = hue.Hue(config['hue'])
             self.rooms = config['hue_rooms']

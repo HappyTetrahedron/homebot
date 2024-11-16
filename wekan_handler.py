@@ -1,12 +1,11 @@
 from base_handler import *
-import requests
-from dateutil import parser
 import datetime
 import logging
 import random
 from utils import PERM_ADMIN
 from utils import get_exclamation
 from utils import get_affirmation
+from wekan_service import WekanService
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +26,15 @@ BUMP_WHENEVER = "?"
 CARD_SYNONYMS = ['cards', 'todos', 'tasks'] # all 5 characters - if any of different length are introduced fix code below!
 
 class WekanHandler(BaseHandler):
-    
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "wekan", "Wekan Integration")
+
+    wekan_service: WekanService
+
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key="wekan", name="Wekan Integration")
+        self.wekan_service = service_hub.wekan
         if 'wekan' in config:
             self.config = config['wekan']
             self.enabled = True
-            self.token_expires = 0
         else:
             self.enabled = False
 
@@ -160,11 +161,7 @@ class WekanHandler(BaseHandler):
             card_shorthand = args[0]
             card_id, list_id = self.shorthand_to_card(card_shorthand)
 
-            payload = {
-                'listId': self.config['target_list']
-            }
-
-            self.call_api('boards/{}/lists/{}/cards/{}'.format(self.config['board'], list_id, card_id), payload, method='PUT')
+            self.wekan_service.move_card_to_done(list_id, card_id)
 
             resp = self.get_card_buttons(kwargs['actor_id'], lists, lanes)
             if isinstance(resp, str):
@@ -183,11 +180,7 @@ class WekanHandler(BaseHandler):
             card_shorthand = args[0]
             card_id, list_id = self.shorthand_to_card(card_shorthand)
 
-            payload = {
-                'listId': self.config['inprogress_list']
-            }
-
-            self.call_api('boards/{}/lists/{}/cards/{}'.format(self.config['board'], list_id, card_id), payload, method='PUT')
+            self.wekan_service.move_card_to_in_progress(list_id, card_id)
 
             resp = self.get_card_bump_buttons(kwargs['actor_id'], lists, lanes)
             if isinstance(resp, str):
@@ -202,20 +195,14 @@ class WekanHandler(BaseHandler):
 
         if cmd == ASSIGN:
             args = data[1].split(':')
-            user_id = args[0]
-            user = [ u for u in self.config['users'] if u['wekan_id'] == user_id ]
-            if len(user) < 1:
-                user = {}
-            else:
-                user = user[0]
+            telegram_user_id = args[0]
+            name = self.wekan_service.get_wekan_user_name(telegram_user_id) or '... someone'
+
             card_id, list_id = self.shorthand_to_card(args[1])
-            data = {
-                '_id': card_id,
-                'assignees': [user_id],
-            }
-            r = self.call_api('boards/{}/lists/{}/cards/{}'.format(self.config['board'], list_id, card_id), data, method='PUT')
+            self.wekan_service.assign_card(list_id, card_id, telegram_user_id)
+
             return {
-                'message': "{}! I created the new task for you and assigned it to {}.".format(get_affirmation(), user.get('name', '... someone')),
+                'message': f"{get_affirmation()}! I created the new task for you and assigned it to f{name}.",
                 'answer': get_affirmation(),
             }
 
@@ -234,15 +221,7 @@ class WekanHandler(BaseHandler):
                                    (datetime.timedelta(days=30) if bump_code == BUMP_1_MONTH else
                                    (datetime.timedelta(days=random.randint(3,30))))))
 
-            print(start_date.strftime("%Y-%m-%dT%H:%M:%S.000Z"))
-            timestamp = start_date.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-
-            payload = {
-                'listId': self.config['backlog_list'],
-                'startAt': timestamp,
-            }
-
-            self.call_api('boards/{}/lists/{}/cards/{}'.format(self.config['board'], list_id, card_id), payload, method='PUT')
+            self.wekan_service.move_card_to_backlog(list_id, card_id, start_date)
 
             resp = self.get_card_bump_buttons(kwargs['actor_id'], lists, lanes)
             if isinstance(resp, str):
@@ -254,13 +233,10 @@ class WekanHandler(BaseHandler):
             resp['answer'] = get_affirmation()
             return resp
 
-
-
     def get_card_text(self, telegram_user, lists, lanes):
-        cards = self.get_my_cards(telegram_user, lists, lanes)
-        if isinstance(cards, str):
-            return cards
-
+        cards = self.wekan_service.get_cards(telegram_user, lists, lanes)
+        if not cards:
+            return f"{get_affirmation()}! You've got no cards right now."
         msg = {
             'message': '\n'.join([ '\n'.join([self.format_card_name(c, li) for c in subcards]) for li, subcards in cards.items() ]),
             'buttons': [[{
@@ -271,9 +247,9 @@ class WekanHandler(BaseHandler):
         return msg
 
     def get_card_buttons(self, telegram_user, lists, lanes):
-        cards = self.get_my_cards(telegram_user, lists, lanes)
-        if isinstance(cards, str):
-            return cards
+        cards = self.wekan_service.get_cards(telegram_user, lists, lanes)
+        if not cards:
+            return f"{get_affirmation()}! You've got no cards right now."
         buttons = []
         for li, cardlist in cards.items():
             for card in cardlist:
@@ -302,9 +278,9 @@ class WekanHandler(BaseHandler):
         }
 
     def get_card_bump_buttons(self, telegram_user, lists, lanes):
-        cards = self.get_my_cards(telegram_user, lists, lanes)
-        if isinstance(cards, str):
-            return cards
+        cards = self.wekan_service.get_cards(telegram_user, lists, lanes)
+        if not cards:
+            return f"{get_affirmation()}! You've got no cards right now."
         buttons = []
         for li, cardlist in cards.items():
             for card in cardlist:
@@ -350,12 +326,11 @@ class WekanHandler(BaseHandler):
             'buttons': buttons,
         }
 
-
-    def format_card_name(self, card, listId):
+    def format_card_name(self, card, list_id):
         list_prefix = ""
         list_suffix = ""
         for source in self.config["source_lists"]:
-            if source["id"] == listId:
+            if source["id"] == list_id:
                 list_prefix = source.get("prefix", "")
                 list_suffix = source.get("suffix", "")
         lane_prefix = ""
@@ -366,77 +341,18 @@ class WekanHandler(BaseHandler):
                 lane_suffix = lane.get("suffix", "")
         return "{}{} {} {}{}".format(list_prefix, lane_prefix, card['title'], lane_suffix, list_suffix).strip()
 
-    def get_my_cards(self, telegram_user, lists, lanes):
-        wekan_user = [ u for u in self.config['users'] if u['telegram_id'] == telegram_user ]
-
-        if len(wekan_user) != 1:
-            return "{} I couldn't associate you with a wekan user.".format(get_exclamation())
-        wekan_user = wekan_user[0]['wekan_id']
-
-        valid_lists_ids = [l['id'] for l in self.config['source_lists'] ]
-
-        all_lane_cards = {}
-        for la in lanes:
-            lanecards = self.call_api("boards/{}/swimlanes/{}/cards".format(self.config['board'], la))
-            lanecards = [c for c in lanecards if len(c['assignees']) == 0 or wekan_user in c['assignees']]
-            for lc in lanecards:
-                if lc['listId'] in valid_lists_ids:
-                    if lc['listId'] not in all_lane_cards:
-                        all_lane_cards[lc['listId']] = []
-
-                    all_lane_cards[lc['listId']].append(lc)
-
-        all_list_cards = {}
-        for li in lists:
-            listcards = self.call_api("boards/{}/lists/{}/cards".format(self.config['board'], li))
-            listcards = [c for c in listcards if len(c['assignees']) == 0 or wekan_user in c['assignees']]
-            if len(listcards) != 0:
-                all_list_cards[li] = listcards
-
-        cards = {}
-        if lists and lanes:
-            # both were specified, so we will only display cards that match both:
-
-            for listId, cardList in all_list_cards.items():
-                current_list = []
-                for card in cardList:
-                    if card['_id'] in [c['_id'] for c in all_lane_cards.get(listId, [])]:
-                        current_list.append(card)
-                if current_list:
-                    cards[listId] = current_list
-
-        if lists and not lanes:
-            cards = all_list_cards
-        if lanes and not lists:
-            cards = all_lane_cards
-
-        if len(cards) == 0:
-            return "{}! You've got no cards right now.".format(get_affirmation())
-        return cards
-
     def create_card(self, telegram_user, message, list_id, assign_to_me=False):
-        wekan_user = [ u for u in self.config['users'] if u['telegram_id'] == telegram_user ]
-        if len(wekan_user) != 1:
-            return "{} I couldn't associate you with a wekan user.".format(get_exclamation())
-        wekan_user = wekan_user[0]['wekan_id']
+        card_id = self.wekan_service.create_card(telegram_user, message, list_id, assign_to_creator=assign_to_me)
+        if not card_id:
+            return f"{get_exclamation()} I couldn't associate you with a wekan user."
 
-        newcard = {
-            "authorId": wekan_user,
-            "title": message,
-            "swimlaneId": self.config['default_lane']
-        }
-
-        if assign_to_me:
-            newcard['assignees'] = [wekan_user]
-
-        card = self.call_api('boards/{}/lists/{}/cards'.format(self.config['board'], list_id), payload=newcard)
         buttons = []
 
         if list_id == self.config['default_list'] and not assign_to_me:
             for user in self.config['users']:
                 buttons.append([{
                     'text': 'Assign to {}'.format(user['name']),
-                    'data': '{}:{}:{}'.format(ASSIGN, user['wekan_id'], self.card_to_shorthand(card['_id'], list_id))
+                    'data': f'{ASSIGN}:{user['telegram_id']}:{self.card_to_shorthand(card_id, list_id)}',
                 }])
 
             buttons.append([{
@@ -449,31 +365,11 @@ class WekanHandler(BaseHandler):
         }
         return reply
 
-    def call_api(self, path, payload=None, method='GET'):
-        base_url = self.config['url']
-        if not self.token_valid():
-            self.login()
-        headers = {
-            'Authorization': 'Bearer {}'.format(self.token),
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-        }
-        if payload:
-            if method == 'GET':
-                method = 'POST'
-            data = requests.request(method, "{}/api/{}".format(base_url, path), json=payload, headers=headers)
-            return data.json()
-        else:
-            data = requests.get("{}/api/{}".format(base_url, path), headers=headers)
-            return data.json()
-        return data
-
-
     def toggle_report(self, actor, db):
         table = db['wekan']
         entry = table.find_one(actor=actor)
         if not entry:
-            entry= {
+            entry = {
                 'actor': actor,
                 'enabled': True,
                 'next_message': self.get_next_reminder_date(),
@@ -487,27 +383,6 @@ class WekanHandler(BaseHandler):
         if entry['enabled']:
             return "You will receive daily task reports."
         return "You will no longer receive task reports."
-
-
-    def token_valid(self): 
-        return self.token_expires and self.token_expires > datetime.datetime.now().astimezone()
-
-
-    def login(self):
-        base_url = self.config['url']
-        headers = {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-        }
-        login = {
-            'username': self.config['username'],
-            'password': self.config['password'],
-        }
-        auth = requests.post("{}/users/login".format(base_url), headers=headers, json=login).json()
-        self.token = auth['token']
-        self.token_expires = parser.parse(auth['tokenExpires'])
-        self.wekan_id = auth['id']
-
 
     def card_to_shorthand(self, card, list_id):
         list_ids = [l['id'] for l in self.config['source_lists']]

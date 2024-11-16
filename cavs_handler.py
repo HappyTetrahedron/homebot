@@ -5,8 +5,8 @@ from utils import PERM_ADMIN
 
 class CavsHandler(BaseHandler):
 
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "cavs", "Initialize CAVS")
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key="cavs", name="Initialize CAVS")
         if 'cavs_init_command' in config:
             self.cmd = config['cavs_init_command']
             self.enabled = True

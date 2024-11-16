@@ -12,8 +12,8 @@ UPDATE_LIST = 'up'
 
 class GroceryHandler(BaseHandler):
 
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "gro", "Grocery Lists")
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key="gro", name="Grocery Lists")
         self.lists = config['groceries']['lists']
 
     def help(self, permission):

@@ -26,8 +26,8 @@ NEGATIVE_REPLIES = [
 ]
 
 class MoatCatsHandler(BaseHandler):
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "moat_cats_battery", "Cats")
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key="moat_cats_battery", name="Cats")
         if 'moat' in config:
             self.base_url = config['moat']['base_url']
             self.enabled = True

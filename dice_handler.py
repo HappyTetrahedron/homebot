@@ -7,8 +7,8 @@ DICE_ROLL_REGEX = re.compile('^roll.* (\d*)d(\d+)', flags=re.I)
 
 class DiceHandler(BaseHandler):
 
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "dice", "Dice rolls and coin flips")
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key= "dice", name="Dice rolls and coin flips")
      
     def help(self, permission):
         return {

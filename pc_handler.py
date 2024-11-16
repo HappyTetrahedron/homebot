@@ -11,8 +11,8 @@ TURN_POWER_OFF = "off"
 REMOVE_BUTTONS = "rm"
 
 class PCHandler(BaseHandler):
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "pc", "Computer Control")
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key= "pc", name="Computer Control")
         if 'pc' in config:
             self.config = config['pc']
             self.enabled = True

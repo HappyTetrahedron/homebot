@@ -10,8 +10,8 @@ FINALIZE = 'fin'
 INITIAL = 'ini'
 
 class ListPresetHandler(BaseHandler):
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "lip", "List presets")
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key="lip", name="List presets")
         if 'listpresets' in config:
             self.lists = config['listpresets']
             self.enabled = True

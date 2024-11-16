@@ -1,5 +1,8 @@
+from service_hub import ServiceHub
+
+
 class BaseHandler:
-    def __init__(self, config, messenger, key, name):
+    def __init__(self, config, messenger, service_hub: ServiceHub, key: str, name: str):
         self._config = config
         self._messenger = messenger
         self._debug = config['debug']

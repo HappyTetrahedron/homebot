@@ -13,8 +13,8 @@ SELECT_GROUP = 'sg'
 CANCEL = 'cancel'
 
 class ButtonhubFlowsHandler(BaseHandler):
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "buttonhub_flows", "Buttonhub Flows")
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key="buttonhub_flows", name="Buttonhub Flows")
         if 'buttonhub' in config:
             self.base_url = config['buttonhub']['base_url']
             self.enabled = True

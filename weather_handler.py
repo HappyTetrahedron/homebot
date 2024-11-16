@@ -4,7 +4,6 @@ import datetime
 import logging
 import json
 import requests
-import re
 
 from unicodedata import normalize
 
@@ -28,8 +27,8 @@ REFRESH = "ref"
 
 
 class WeatherHandler(BaseHandler):
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "wth", "Weather Forecast")
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key="wth", name="Weather Forecast")
         self.config = config['weather']
 
 

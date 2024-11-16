@@ -8,8 +8,8 @@ UPDATE = 'UP'
 NOIMAGE = 'noimage.png'
 
 class WebcamHandler(BaseHandler):
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "webcam", "Webcams")
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key="webcam", name="Webcams")
         if 'webcam' in config:
             self.cams = config['webcam'].get('cams', [])
             self.tmp_path = config['webcam'].get('tmp_path', '/tmp/campic.jpg')

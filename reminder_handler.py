@@ -4,6 +4,7 @@ import parsedatetime
 import datetime
 import logging
 from utils import get_affirmation
+from wekan_service import WekanService
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ UNITS = [
 REMOVE_BUTTONS = 'rb'
 REMOVE_REMINDER = 'rm'
 REMOVE_PERIODIC_REMINDER = 'rmp'
+CREATE_CARD = 'cc'
 
 SNOOZE_REMINDER_HOUR = 'snh'
 SNOOZE_REMINDER_6_HOURS = 'sn6h'
@@ -55,8 +57,11 @@ DELETE_MESSAGE = 'dm'
 
 
 class ReminderHandler(BaseHandler):
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "rem", "Reminders")
+    wekan_service: WekanService
+
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key="rem", name="Reminders")
+        self.wekan_service = service_hub.wekan
 
     def help(self, permission):
         return {
@@ -150,6 +155,19 @@ class ReminderHandler(BaseHandler):
         if method == REMOVE_BUTTONS:
             answer = {
                 'answer': get_affirmation(),
+                'message': self.reminder_to_string(reminder),
+            }
+        if method == CREATE_CARD:
+            card_created = False
+            if 'actor' in reminder:
+                card_id = self.wekan_service.create_card(
+                    telegram_user_id=reminder['actor'],
+                    title=reminder['subject'],
+                    assign_to_creator=True,
+                )
+                card_created = card_id is not None
+            answer = {
+                'answer': "Card created" if card_created else "I'm afraid I can't do that",
                 'message': self.reminder_to_string(reminder),
             }
         if method == DELETE_MESSAGE:
@@ -447,6 +465,14 @@ class ReminderHandler(BaseHandler):
                     'data': '{}:{}'.format(reminder['id'], REMOVE_BUTTONS),
                 }],
             ]
+
+            if 'actor' in reminder and self.wekan_service.can_create_cards(reminder['actor']):
+                buttons[0].append(
+                    {
+                        'text': 'Create card',
+                        'data': '{}:{}'.format(reminder['id'], CREATE_CARD),
+                    },
+                )
 
             if reminder['periodic']:
                 self.advance_periodic_reminder(reminder)

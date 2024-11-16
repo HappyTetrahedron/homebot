@@ -29,6 +29,7 @@ import buttonhub_climate_handler
 import moat_cats_handler
 import list_preset_handler
 import wekan_handler
+from service_hub import ServiceHub
 
 from utils import get_generic_response
 from utils import PERMISSIONS, PERM_ADMIN, PERM_OWNER, PERM_USER
@@ -284,9 +285,11 @@ class HomeBot:
         updater = Updater(config['token'], use_context=True)
         self.bot = updater.bot
 
+        service_hub = ServiceHub(config)
+
         """Set up handlers"""
         for handler_class in HANDLER_CLASSES:
-            handler = handler_class(self.config, self)
+            handler = handler_class(self.config, self, service_hub)
             self.handlers.append(handler)
 
         t = threading.Thread(target=self.scheduler_run)

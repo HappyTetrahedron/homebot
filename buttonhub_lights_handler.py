@@ -9,8 +9,8 @@ from utils import PERM_ADMIN
 UPDATE_LIST = 'up'
 
 class ButtonhubLightsHandler(BaseHandler):
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "buttonhub_lights", "Buttonhub Lights")
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key="buttonhub_lights", name="Buttonhub Lights")
         self.base_url = None
         self.enabled = False
         if 'buttonhub' in config:

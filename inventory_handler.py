@@ -13,8 +13,8 @@ LIST_PATTERN = re.compile('^\s*what(?:\s+is|\'s)\s+(.+?)\s+the\s+(.+?)\??\s*$',
 
 class InventoryHandler(BaseHandler):
 
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "inv", "Inventory Keeper")
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key="inv", name="Inventory Keeper")
 
     def help(self, permission):
         if permission >= PERM_ADMIN:

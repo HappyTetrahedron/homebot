@@ -9,8 +9,8 @@ from utils import PERM_ADMIN
 UPDATE_LIST = 'up'
 
 class ButtonhubBatteryHandler(BaseHandler):
-    def __init__(self, config, messenger):
-        super().__init__(config, messenger, "buttonhub_battery", "Buttonhub Batteries")
+    def __init__(self, config, messenger, service_hub):
+        super().__init__(config, messenger, service_hub, key="buttonhub_battery", name="Buttonhub Batteries")
         if 'buttonhub' in config:
             self.base_url = config['buttonhub']['base_url']
             self.config = config['buttonhub']['batteries']
