@@ -19,7 +19,9 @@ SEND_BUMP_LIST = 'sb'
 ASSIGN = 'ass'
 
 BUMP_1_DAY = "d"
+BUMP_3_DAYS = "D"
 BUMP_1_WEEK = "w"
+BUMP_12_DAYS = "W"
 BUMP_1_MONTH = "m"
 BUMP_WHENEVER = "?"
 
@@ -216,10 +218,20 @@ class WekanHandler(BaseHandler):
 
             now = datetime.datetime.now()
             morning = datetime.datetime(year=now.year, month=now.month, day=now.day, hour=2)
-            start_date = morning + (datetime.timedelta(days=1) if bump_code == BUMP_1_DAY else \
-                                   (datetime.timedelta(days=7) if bump_code == BUMP_1_WEEK else \
-                                   (datetime.timedelta(days=30) if bump_code == BUMP_1_MONTH else
-                                   (datetime.timedelta(days=random.randint(3,30))))))
+            start_date = morning
+
+            if bump_code == BUMP_1_DAY:
+                start_date += datetime.timedelta(days=1)
+            elif bump_code == BUMP_3_DAYS:
+                start_date += datetime.timedelta(days=3)
+            elif bump_code == BUMP_1_WEEK:
+                start_date += datetime.timedelta(days=7)
+            elif bump_code == BUMP_12_DAYS:
+                start_date += datetime.timedelta(days=12)
+            elif bump_code == BUMP_1_MONTH:
+                start_date += datetime.timedelta(days=30)
+            else:
+                start_date += datetime.timedelta(days=random.randint(3, 30))
 
             self.wekan_service.move_card_to_backlog(list_id, card_id, start_date)
 
@@ -282,43 +294,54 @@ class WekanHandler(BaseHandler):
         if not cards:
             return f"{get_affirmation()}! You've got no cards right now."
         buttons = []
+        lists_string = ','.join(self.lists_to_shorthand(lists))
+        lanes_string = ','.join(self.lanes_to_shorthand(lanes))
         for li, cardlist in cards.items():
             for card in cardlist:
+                card_id_shorthand = self.card_to_shorthand(card['_id'], li)
                 buttons.append([{
                     'text': self.format_card_name(card, li),
-                    'data': '{}:{}:{}:{}'.format(MARK_DONE, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+                    'data': f'{MARK_DONE}:{card_id_shorthand}:{lists_string}:{lanes_string}',
                 }])
                 buttons.append([
                     {
                         'text': "▶️",
-                        'data': '{}:{}:{}:{}'.format(PROGRESS, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+                        'data': f'{PROGRESS}:{card_id_shorthand}:{lists_string}:{lanes_string}',
                     },
                     {
                         'text': "+1d",
-                        'data': '{}:{}:{}:{}:{}'.format(BUMP, BUMP_1_DAY, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+                        'data': f'{BUMP}:{BUMP_1_DAY}:{card_id_shorthand}:{lists_string}:{lanes_string}',
+                    },
+                    {
+                        'text': "+3d",
+                        'data': f'{BUMP}:{BUMP_3_DAYS}:{card_id_shorthand}:{lists_string}:{lanes_string}',
                     },
                     {
                         'text': "+1w",
-                        'data': '{}:{}:{}:{}:{}'.format(BUMP, BUMP_1_WEEK, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+                        'data': f'{BUMP}:{BUMP_1_WEEK}:{card_id_shorthand}:{lists_string}:{lanes_string}',
+                    },
+                    {
+                        'text': "+12d",
+                        'data': f'{BUMP}:{BUMP_12_DAYS}:{card_id_shorthand}:{lists_string}:{lanes_string}',
                     },
                     {
                         'text': "+1m",
-                        'data': '{}:{}:{}:{}:{}'.format(BUMP, BUMP_1_MONTH, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+                        'data': f'{BUMP}:{BUMP_1_MONTH}:{card_id_shorthand}:{lists_string}:{lanes_string}',
                     },
                     {
                         'text': "🌈",
-                        'data': '{}:{}:{}:{}:{}'.format(BUMP, BUMP_WHENEVER, self.card_to_shorthand(card['_id'], li), ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+                        'data': f'{BUMP}:{BUMP_WHENEVER}:{card_id_shorthand}:{lists_string}:{lanes_string}',
                     },
                 ])
         buttons.append([
             {
                 'text': "Update",
-                'data': '{}:{}:{}'.format(SEND_BUMP_LIST, ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
+                'data': f'{SEND_BUMP_LIST}:{lists_string}:{lanes_string}',
             },
             {
                 'text': "Back",
-                'data': '{}:{}:{}'.format(UPDATE, ','.join(self.lists_to_shorthand(lists)), ','.join(self.lanes_to_shorthand(lanes))),
-            }
+                'data': f'{UPDATE}:{lists_string}:{lanes_string}',
+            },
         ])
 
         return {
