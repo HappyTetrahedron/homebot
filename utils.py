@@ -35,7 +35,9 @@ AFFIRMATIONS = [
     "Swell",
     "Gorgeous",
     "Fantastic",
-    "no cap fr fr",
+    "Alrighty",
+    "Excellent",
+    "Very good",
 ]
 
 EXCLAMATIONS = [
@@ -50,6 +52,14 @@ EXCLAMATIONS = [
     "Whoopsie!",
     "Oh oh...",
     "!!!",
+    "Oh fudge!",
+    "Ye gods!",
+    "Fiddlesticks!",
+    "Zounds!"
+    "Egads!",
+    "Blast!",
+    "Blazes!",
+    "Holey moley",
 ]
 
 GENERIC_RESPONSES = [
@@ -85,6 +95,28 @@ GENERIC_RESPONSES = [
     "Indubitably",
     "???",
     "I thought so too",
+    "My word!",
+    "Oh fudge",
+    "Pardon?",
+    "Certainly",
+    "I'm afraid I don't have the answer to that",
+    "Who told you?",
+    "How unexpected",
+    "This is getting out of hand",
+    "And then, the wolves came",
+    "I think you have the wrong number",
+    "nah",
+    "I don't know, probably",
+    "Sorry, can't talk right now, my hands are wet",
+    "Do you take me for some conjurer or cheap tricks?",
+    "I'll need to investigate that",
+    "Scientists are still debating about this, actually",
+    "That's just propaganda",
+    "Affirmative",
+    "I recommend you take a nap instead",
+    "Fascinating",
+    "How peculiar",
+    "no hablo ingles",
 ]
 
 
