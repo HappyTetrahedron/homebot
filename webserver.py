@@ -6,8 +6,8 @@ app = Flask(__name__)
 params = {}
 
 
-def init(sendmessage, config):
-    params['send'] = sendmessage
+def init(send_message_to_all_admins, config):
+    params['send'] = send_message_to_all_admins
     params['config'] = config
 
 

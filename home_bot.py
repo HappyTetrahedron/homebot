@@ -143,6 +143,13 @@ class HomeBot:
             else:
                 self.bot.send_message(recipient_id, message)
 
+    def send_message_to_all_admins(self, message):
+        recipients = [self.config['owner_id']]
+        for admin_id in self.config['admin_ids']:
+            recipients.append(admin_id)
+        for recipient_id in recipients:
+            self.send_message(message, recipient_id=recipient_id)
+
     def handle_message(self, update, context):
         permission = self.get_permissions(update.message.from_user.id)
         if self.config['debug']:
@@ -306,7 +313,7 @@ class HomeBot:
         # Start the Bot
         updater.start_polling()
 
-        webserver.init(self.send_message, self.config)
+        webserver.init(self.send_message_to_all_admins, self.config)
         webserver.run()
 
         updater.idle()
