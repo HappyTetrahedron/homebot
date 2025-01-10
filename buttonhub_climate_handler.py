@@ -1,7 +1,5 @@
-from requests import HTTPError
-
 from base_handler import *
-import requests
+from buttonhub_service import ButtonhubError
 
 from utils import PERM_ADMIN
 
@@ -73,12 +71,7 @@ class ButtonhubClimateHandler(BaseHandler):
                     ]
                 ],
             }
-        except HTTPError:
-            return {
-                'message': 'Failed to check climate :/',
-                'answer': 'Error!',
-            }
-        except requests.exceptions.ConnectionError:
+        except ButtonhubError:
             return {
                 'message': 'Failed to check climate :/',
                 'answer': 'Error!',

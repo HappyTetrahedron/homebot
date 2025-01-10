@@ -1,7 +1,5 @@
-from requests import HTTPError
-
 from base_handler import *
-import requests
+from buttonhub_service import ButtonhubError
 
 from utils import PERM_ADMIN
 
@@ -14,8 +12,8 @@ class ButtonhubLightsHandler(BaseHandler):
         self.buttonhub_service = service_hub.buttonhub
         self.enabled = False
         if self.buttonhub_service.enabled:
-            self.lights = config['buttonhub'].get('lights')
-            self.rooms = config['buttonhub'].get('rooms')
+            self.lights = self.buttonhub_service.config.get('lights')
+            self.rooms = self.buttonhub_service.config.get('rooms')
             self.enabled = self.lights and self.rooms
 
     def help(self, permission):
@@ -28,18 +26,15 @@ class ButtonhubLightsHandler(BaseHandler):
             'examples': ["lights"],
         }
 
-
     def matches_message(self, message):
         if not self.enabled:
             return
         return message.lower().strip() == 'lights'
 
-
     def handle(self, message, **kwargs):
         if kwargs['permission'] < PERM_ADMIN:
             return "Sorry, you can't do this."
         return self.check_lights()
-
 
     def check_lights(self):
         default_field = self.lights['default_field']
@@ -72,12 +67,7 @@ class ButtonhubLightsHandler(BaseHandler):
                     ]
                 ],
             }
-        except HTTPError:
-            return {
-                'message': 'Failed to check lights :/',
-                'answer': 'Error!',
-            }
-        except requests.exceptions.ConnectionError:
+        except ButtonhubError:
             return {
                 'message': 'Failed to check lights :/',
                 'answer': 'Error!',

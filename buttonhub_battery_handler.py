@@ -1,9 +1,7 @@
-from requests import HTTPError
-
 from base_handler import *
 import datetime
-import requests
 
+from buttonhub_service import ButtonhubError
 from utils import PERM_ADMIN
 
 UPDATE_LIST = 'up'
@@ -59,12 +57,7 @@ class ButtonhubBatteryHandler(BaseHandler):
                     ]
                 ],
             }
-        except HTTPError:
-            return {
-                'message': 'Failed to check batteries :/',
-                'answer': 'Error!',
-            }
-        except requests.exceptions.ConnectionError:
+        except ButtonhubError:
             return {
                 'message': 'Failed to check batteries :/',
                 'answer': 'Error!',

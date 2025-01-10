@@ -1,9 +1,7 @@
-from requests import HTTPError
-
 from base_handler import *
 import re
-import requests
 
+from buttonhub_service import ButtonhubError
 from utils import PERM_ADMIN
 from utils import get_affirmation
 
@@ -28,12 +26,10 @@ class ButtonhubFlowsHandler(BaseHandler):
             'examples': ["Run flow fish-lamps-on", "flow"],
         }
 
-
     def matches_message(self, message):
         if not self.enabled:
             return
         return RUN_FLOW_REGEX.match(message) is not None or message.lower().strip() in ['flow', 'flows']
-
 
     def handle(self, message, **kwargs):
         if kwargs['permission'] < PERM_ADMIN:
@@ -45,7 +41,6 @@ class ButtonhubFlowsHandler(BaseHandler):
         match = RUN_FLOW_REGEX.match(message)
         flow_name = match.groups()[0]
         return self.trigger_flow(flow_name)
-
 
     def handle_button(self, data, **kwargs):
         parts = data.split(':')
@@ -63,7 +58,6 @@ class ButtonhubFlowsHandler(BaseHandler):
 
         return "Uh oh, something is off"
 
-
     def trigger_flow(self, flow_name):
         try:
             self.buttonhub_service.run_flow(flow_name)
@@ -71,17 +65,11 @@ class ButtonhubFlowsHandler(BaseHandler):
                 'message': 'Flow {} triggered'.format(flow_name),
                 'answer': get_affirmation(),
             }
-        except HTTPError as e:
+        except ButtonhubError:
             return {
-                'message': 'Failed to trigger flow: {}'.format(e),
+                'message': 'Failed to trigger flow :/',
                 'answer': 'Error!',
             }
-        except requests.exceptions.ConnectionError:
-            return {
-                'message': 'Failed to trigger flow',
-                'answer': 'Error!',
-            }
-
 
     def prompt_flow_groups(self):
         try:
@@ -107,15 +95,10 @@ class ButtonhubFlowsHandler(BaseHandler):
                 'message': "Select a group:",
                 'buttons': buttons,
             }
-        except HTTPError as e:
+        except ButtonhubError:
             return {
-                'message': 'Failed to get flows: {}'.format(e),
+                'message': 'Failed to get flows :/',
             }
-        except requests.exceptions.ConnectionError:
-            return {
-                'message': 'Failed to get flows',
-            }
-
 
     def prompt_flows(self, group=None):
         try:
@@ -138,11 +121,7 @@ class ButtonhubFlowsHandler(BaseHandler):
                 'message': "Which flow would you like to trigger?",
                 'buttons': buttons,
             }
-        except HTTPError as e:
+        except ButtonhubError:
             return {
-                'message': 'Failed to get flows: {}'.format(e),
-            }
-        except requests.exceptions.ConnectionError:
-            return {
-                'message': 'Failed to get flows',
+                'message': 'Failed to get flows :/',
             }

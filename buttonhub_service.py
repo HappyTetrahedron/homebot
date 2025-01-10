@@ -13,17 +13,35 @@ class ButtonhubService:
             self.enabled = False
 
     def get_state(self):
-        response = requests.get(f'{self.base_url}/state', timeout=5)
-        response.raise_for_status()
-        return response.json()
+        try:
+            response = requests.get(f'{self.base_url}/state', timeout=5)
+            response.raise_for_status()
+            return response.json()
+        except requests.HTTPError:
+            raise ButtonhubError
+        except requests.exceptions.ConnectionError:
+            raise ButtonhubError
 
     def run_flow(self, flow_name):
-        url = '{}/flows/{}'.format(self.base_url, flow_name)
-        response = requests.post(url, timeout=5)
-        response.raise_for_status()
+        try:
+            url = '{}/flows/{}'.format(self.base_url, flow_name)
+            response = requests.post(url, timeout=5)
+            response.raise_for_status()
+        except requests.HTTPError:
+            raise ButtonhubError
+        except requests.exceptions.ConnectionError:
+            raise ButtonhubError
 
     def get_flows(self):
-        url = '{}/flows'.format(self.base_url)
-        response = requests.get(url, timeout=5)
-        response.raise_for_status()
-        return response.json()['flows']
+        try:
+            url = '{}/flows'.format(self.base_url)
+            response = requests.get(url, timeout=5)
+            response.raise_for_status()
+            return response.json()['flows']
+        except requests.HTTPError:
+            raise ButtonhubError
+        except requests.exceptions.ConnectionError:
+            raise ButtonhubError
+
+class ButtonhubError(RuntimeError):
+    pass
