@@ -10,12 +10,11 @@ UPDATE_LIST = 'up'
 class ButtonhubClimateHandler(BaseHandler):
     def __init__(self, config, messenger, service_hub):
         super().__init__(config, messenger, service_hub, key="buttonhub_climate", name="Buttonhub Climate")
-        self.base_url = None
+        self.buttonhub_service = service_hub.buttonhub
         self.enabled = False
-        if 'buttonhub' in config:
-            self.base_url = config['buttonhub']['base_url']
-            self.rooms = config['buttonhub'].get('rooms')
-            self.enabled = self.rooms and self.base_url
+        if self.buttonhub_service.enabled:
+            self.rooms = self.buttonhub_service.get('rooms')
+            self.enabled = self.rooms
 
     def help(self, permission):
         if not self.enabled:
@@ -27,24 +26,21 @@ class ButtonhubClimateHandler(BaseHandler):
             'examples': ["climate"],
         }
 
-
     def matches_message(self, message):
         if not self.enabled:
             return
         return message.lower().strip() == 'climate'
-
 
     def handle(self, message, **kwargs):
         if kwargs['permission'] < PERM_ADMIN:
             return "Sorry, you can't do this."
         return self.check_climate()
 
-
     def check_climate(self):
         try:
             room_states = []
 
-            buttonhub_state = self._get_state()
+            buttonhub_state = self.buttonhub_service.get_state()
             for room in self.rooms:
                 room_state = []
                 for device in room.get('sensors', []):
@@ -87,11 +83,6 @@ class ButtonhubClimateHandler(BaseHandler):
                 'message': 'Failed to check climate :/',
                 'answer': 'Error!',
             }
-
-    def _get_state(self):
-        response = requests.get(f'{self.base_url}/state', timeout=5)
-        response.raise_for_status()
-        return response.json()
 
     def handle_button(self, data, **kwargs):
         if data == UPDATE_LIST:

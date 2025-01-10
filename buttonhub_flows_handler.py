@@ -15,12 +15,8 @@ CANCEL = 'cancel'
 class ButtonhubFlowsHandler(BaseHandler):
     def __init__(self, config, messenger, service_hub):
         super().__init__(config, messenger, service_hub, key="buttonhub_flows", name="Buttonhub Flows")
-        if 'buttonhub' in config:
-            self.base_url = config['buttonhub']['base_url']
-            self.enabled = True
-        else:
-            self.base_url = None
-            self.enabled = False
+        self.buttonhub_service = service_hub.buttonhub
+        self.enabled = self.buttonhub_service.enabled
 
     def help(self, permission):
         if not self.enabled:
@@ -70,7 +66,7 @@ class ButtonhubFlowsHandler(BaseHandler):
 
     def trigger_flow(self, flow_name):
         try:
-            self._run_flow(flow_name)
+            self.buttonhub_service.run_flow(flow_name)
             return {
                 'message': 'Flow {} triggered'.format(flow_name),
                 'answer': get_affirmation(),
@@ -89,7 +85,7 @@ class ButtonhubFlowsHandler(BaseHandler):
 
     def prompt_flow_groups(self):
         try:
-            flows = self._get_flows()
+            flows = self.buttonhub_service.get_flows()
             buttons = []
             groups = []
             for flow in flows:
@@ -123,7 +119,7 @@ class ButtonhubFlowsHandler(BaseHandler):
 
     def prompt_flows(self, group=None):
         try:
-            flows = self._get_flows()
+            flows = self.buttonhub_service.get_flows()
             buttons = []
             for flow in flows:
                 if flow['hidden']:
@@ -150,16 +146,3 @@ class ButtonhubFlowsHandler(BaseHandler):
             return {
                 'message': 'Failed to get flows',
             }
-
-
-    def _run_flow(self, flow_name):
-        url = '{}/flows/{}'.format(self.base_url, flow_name)
-        response = requests.post(url, timeout=5)
-        response.raise_for_status()
-
-
-    def _get_flows(self):
-        url = '{}/flows'.format(self.base_url)
-        response = requests.get(url, timeout=5)
-        response.raise_for_status()
-        return response.json()['flows']

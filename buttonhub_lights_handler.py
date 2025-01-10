@@ -11,13 +11,12 @@ UPDATE_LIST = 'up'
 class ButtonhubLightsHandler(BaseHandler):
     def __init__(self, config, messenger, service_hub):
         super().__init__(config, messenger, service_hub, key="buttonhub_lights", name="Buttonhub Lights")
-        self.base_url = None
+        self.buttonhub_service = service_hub.buttonhub
         self.enabled = False
-        if 'buttonhub' in config:
-            self.base_url = config['buttonhub']['base_url']
+        if self.buttonhub_service.enabled:
             self.lights = config['buttonhub'].get('lights')
             self.rooms = config['buttonhub'].get('rooms')
-            self.enabled = self.lights and self.rooms and self.base_url
+            self.enabled = self.lights and self.rooms
 
     def help(self, permission):
         if not self.enabled:
@@ -49,7 +48,7 @@ class ButtonhubLightsHandler(BaseHandler):
         try:
             lights_on_in = []
 
-            buttonhub_state = self._get_state()
+            buttonhub_state = self.buttonhub_service.get_state()
             for room in self.rooms:
                 for device in room['lights']:
                     device_name = device['name']
@@ -83,11 +82,6 @@ class ButtonhubLightsHandler(BaseHandler):
                 'message': 'Failed to check lights :/',
                 'answer': 'Error!',
             }
-
-    def _get_state(self):
-        response = requests.get(f'{self.base_url}/state', timeout=5)
-        response.raise_for_status()
-        return response.json()
 
     def handle_button(self, data, **kwargs):
         if data == UPDATE_LIST:

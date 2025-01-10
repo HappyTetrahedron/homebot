@@ -11,13 +11,11 @@ UPDATE_LIST = 'up'
 class ButtonhubBatteryHandler(BaseHandler):
     def __init__(self, config, messenger, service_hub):
         super().__init__(config, messenger, service_hub, key="buttonhub_battery", name="Buttonhub Batteries")
-        if 'buttonhub' in config:
-            self.base_url = config['buttonhub']['base_url']
-            self.config = config['buttonhub']['batteries']
-            self.enabled = True
-        else:
-            self.base_url = None
-            self.enabled = False
+        self.buttonhub_service = service_hub.buttonhub
+        self.enabled = False
+        if self.buttonhub_service:
+            self.config = self.buttonhub_service.config.get('batteries')
+            self.enabled = self.config
 
     def help(self, permission):
         if not self.enabled:
@@ -29,18 +27,15 @@ class ButtonhubBatteryHandler(BaseHandler):
             'examples': ["batteries"],
         }
 
-
     def matches_message(self, message):
         if not self.enabled:
             return
         return message.lower().strip() == 'batteries'
 
-
     def handle(self, message, **kwargs):
         if kwargs['permission'] < PERM_ADMIN:
             return "Sorry, you can't do this."
         return self.check_batteries()
-
 
     def check_batteries(self):
         try:
@@ -78,7 +73,7 @@ class ButtonhubBatteryHandler(BaseHandler):
     def _get_battery_status(self):
         battery_status = []
 
-        buttonhub_state = self._get_state()
+        buttonhub_state = self.buttonhub_service.get_state()
         for device, value in buttonhub_state.items():
             battery = value.get('battery')
             if battery:
@@ -92,11 +87,6 @@ class ButtonhubBatteryHandler(BaseHandler):
         battery_status.sort(key=lambda entry: entry['device'])
 
         return battery_status
-
-    def _get_state(self):
-        response = requests.get(f'{self.base_url}/state', timeout=5)
-        response.raise_for_status()
-        return response.json()
 
     def handle_button(self, data, **kwargs):
         if data == UPDATE_LIST:
