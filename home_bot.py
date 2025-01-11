@@ -23,6 +23,7 @@ import dice_handler
 import buttonhub_flows_handler
 import buttonhub_battery_handler
 import buttonhub_lights_handler
+import buttonhub_modes_handler
 import buttonhub_climate_handler
 import moat_cats_handler
 import list_preset_handler
@@ -44,6 +45,7 @@ HANDLER_CLASSES = [
     buttonhub_flows_handler.ButtonhubFlowsHandler,
     buttonhub_battery_handler.ButtonhubBatteryHandler,
     buttonhub_lights_handler.ButtonhubLightsHandler,
+    buttonhub_modes_handler.ButtonhubModesHandler,
     buttonhub_climate_handler.ButtonhubClimateHandler,
     moat_cats_handler.MoatCatsHandler,
     inventory_handler.InventoryHandler,
