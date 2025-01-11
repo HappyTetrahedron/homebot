@@ -12,6 +12,9 @@ class ButtonhubService:
             self.config = {}
             self.enabled = False
 
+    def get_config(self, name):
+        self.config.get(name) or {}
+
     def get_state(self):
         try:
             response = requests.get(f'{self.base_url}/state', timeout=5)
@@ -24,8 +27,7 @@ class ButtonhubService:
 
     def run_flow(self, flow_name):
         try:
-            url = '{}/flows/{}'.format(self.base_url, flow_name)
-            response = requests.post(url, timeout=5)
+            response = requests.post(f'{self.base_url}/flows/{flow_name}', timeout=5)
             response.raise_for_status()
         except requests.HTTPError:
             raise ButtonhubError
@@ -34,8 +36,7 @@ class ButtonhubService:
 
     def get_flows(self):
         try:
-            url = '{}/flows'.format(self.base_url)
-            response = requests.get(url, timeout=5)
+            response = requests.get(f'{self.base_url}/flows', timeout=5)
             response.raise_for_status()
             return response.json()['flows']
         except requests.HTTPError:

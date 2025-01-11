@@ -11,8 +11,8 @@ class ButtonhubClimateHandler(BaseHandler):
         self.buttonhub_service = service_hub.buttonhub
         self.enabled = False
         if self.buttonhub_service.enabled:
-            self.rooms = self.buttonhub_service.get('rooms')
-            self.enabled = self.rooms
+            self.rooms = self.buttonhub_service.get_config('rooms')
+            self.enabled = bool(self.rooms)
 
     def help(self, permission):
         if not self.enabled:

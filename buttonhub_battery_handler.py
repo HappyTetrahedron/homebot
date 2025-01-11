@@ -12,8 +12,8 @@ class ButtonhubBatteryHandler(BaseHandler):
         self.buttonhub_service = service_hub.buttonhub
         self.enabled = False
         if self.buttonhub_service:
-            self.config = self.buttonhub_service.config.get('batteries')
-            self.enabled = self.config
+            self.config = self.buttonhub_service.get_config('batteries')
+            self.enabled = bool(self.config)
 
     def help(self, permission):
         if not self.enabled:

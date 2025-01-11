@@ -12,8 +12,8 @@ class ButtonhubLightsHandler(BaseHandler):
         self.buttonhub_service = service_hub.buttonhub
         self.enabled = False
         if self.buttonhub_service.enabled:
-            self.lights = self.buttonhub_service.config.get('lights')
-            self.rooms = self.buttonhub_service.config.get('rooms')
+            self.lights = self.buttonhub_service.get_config('lights')
+            self.rooms = self.buttonhub_service.get_config('rooms')
             self.enabled = self.lights and self.rooms
 
     def help(self, permission):

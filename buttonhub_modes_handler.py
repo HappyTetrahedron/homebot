@@ -10,8 +10,8 @@ class ButtonhubModesHandler(BaseHandler):
         self.buttonhub_service = service_hub.buttonhub
         self.enabled = False
         if self.buttonhub_service.enabled:
-            self.modes = self.buttonhub_service.config.get('modes')
-            self.enabled = self.modes
+            self.modes = self.buttonhub_service.get_config('modes')
+            self.enabled = bool(self.modes)
 
     def help(self, permission):
         if not self.enabled:
