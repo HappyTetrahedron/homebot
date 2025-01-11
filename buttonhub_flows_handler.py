@@ -29,14 +29,19 @@ class ButtonhubFlowsHandler(BaseHandler):
     def matches_message(self, message):
         if not self.enabled:
             return
-        return RUN_FLOW_REGEX.match(message) is not None or message.lower().strip() in ['flow', 'flows']
+        m = message.lower().strip()
+        return RUN_FLOW_REGEX.match(message) is not None or m == 'flow' or m == 'flows' or m.startswith('flows ')
 
     def handle(self, message, **kwargs):
+        m = message.lower().strip()
         if kwargs['permission'] < PERM_ADMIN:
             return "Sorry, you can't do this."
-        if message.lower().strip() == 'flows':
+        if m == 'flows':
             return self.prompt_flow_groups()
-        if message.lower().strip() == 'flow':
+        if m.startswith('flows '):
+            group_name = m.split(' ')[1]
+            return self.prompt_flows(group_name)
+        if m == 'flow':
             return self.prompt_flows()
         match = RUN_FLOW_REGEX.match(message)
         flow_name = match.groups()[0]
@@ -100,14 +105,14 @@ class ButtonhubFlowsHandler(BaseHandler):
                 'message': 'Failed to get flows :/',
             }
 
-    def prompt_flows(self, group=None):
+    def prompt_flows(self, group_prefix=None):
         try:
             flows = self.buttonhub_service.get_flows()
             buttons = []
             for flow in flows:
                 if flow['hidden']:
                     continue
-                if group and flow['group'] != group:
+                if group_prefix and not flow['group'].startswith(group_prefix):
                     continue
                 buttons.append([{
                     'text': flow['label'],
