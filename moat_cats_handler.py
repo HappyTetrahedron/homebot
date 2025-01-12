@@ -1,11 +1,9 @@
-from requests import HTTPError
-
 from base_handler import *
 import datetime
 import random
 import re
-import requests
 
+from moat_service import MoatError
 from utils import PERM_ADMIN
 
 PATTERN = re.compile('^(have the cats been fed|cats|do i need to feed the cats|should i feed the cats|do the cats need (feeding|food|to be fed)|is it (din|lun)[- ]?(din|lun) time|cat food|cats fed|were the cats fed)\??$', flags=re.I)
@@ -27,13 +25,9 @@ NEGATIVE_REPLIES = [
 
 class MoatCatsHandler(BaseHandler):
     def __init__(self, config, messenger, service_hub):
-        super().__init__(config, messenger, service_hub, key="moat_cats_battery", name="Cats")
-        if 'moat' in config:
-            self.base_url = config['moat']['base_url']
-            self.enabled = True
-        else:
-            self.base_url = None
-            self.enabled = False
+        super().__init__(config, messenger, service_hub, key="moat_cats", name="Cats")
+        self.moat_service = service_hub.moat
+        self.enabled = self.moat_service.enabled
 
     def help(self, permission):
         if not self.enabled:
@@ -57,7 +51,7 @@ class MoatCatsHandler(BaseHandler):
 
     def check_cats(self):
         try:
-            status = self._get_status()
+            status = self.moat_service.get_cats_status()
             last_fed = datetime.datetime.strptime(status['last_feed'], "%Y-%m-%d %H:%M:%S")
             need_feeding = status['need_feeding']
 
@@ -72,18 +66,8 @@ class MoatCatsHandler(BaseHandler):
             return {
                 'message': '\n'.join(messages),
             }
-        except HTTPError:
+        except MoatError:
             return {
                 'message': 'Failed to check cats status :/',
                 'answer': 'Error!',
             }
-        except requests.exceptions.ConnectionError:
-            return {
-                'message': 'Failed to check cats status :/',
-                'answer': 'Error!',
-            }
-
-    def _get_status(self):
-        response = requests.get(f'{self.base_url}/cats-status', timeout=5)
-        response.raise_for_status()
-        return response.json()
