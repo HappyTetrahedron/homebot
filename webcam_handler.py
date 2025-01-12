@@ -1,4 +1,5 @@
 from base_handler import *
+import datetime
 import requests
 from utils import PERM_ADMIN
 from utils import get_exclamation
@@ -51,11 +52,11 @@ class WebcamHandler(BaseHandler):
         cmd = data[0]
 
         if cmd == UPDATE:
-            resp = self.get_snapshot(data[1])
+            resp = self.get_snapshot(data[1], include_timestamp=True)
             resp['answer'] = "Updated!"
             return resp
 
-    def get_snapshot(self, cam):
+    def get_snapshot(self, cam, include_timestamp=False):
         buttons = [[{
                 'text': "Update",
                 'data': "{}§{}".format(UPDATE, cam)
@@ -68,9 +69,14 @@ class WebcamHandler(BaseHandler):
             im = Image.open("{}.jpg".format(self.tmp_path))
             im.save("{}.png".format(self.tmp_path))
 
+            message = f'{cam} camera'
+            if include_timestamp:
+                timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                message = f'{message} ({timestamp})'
+
             return {
-                'message': "{} camera".format(cam),
-                'photo': "{}.png".format(self.tmp_path),
+                'message': message,
+                'photo': f'{self.tmp_path}.png',
                 'buttons': buttons,
             }
         except requests.exceptions.ConnectionError:
