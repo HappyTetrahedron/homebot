@@ -47,7 +47,6 @@ class DiceHandler(BaseHandler):
 
         return "Here's your coin flip result:\n\n{}".format(', '.join(results))
 
-
     def dice_roll(self, match):
         groups = match.groups()
         amount = -1
@@ -67,7 +66,6 @@ class DiceHandler(BaseHandler):
             return "You don't really want to do that."
         if die < 1:
             return "A Dwhat?"
-
 
         results = []
         for i in range(amount):

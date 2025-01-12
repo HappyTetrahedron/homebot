@@ -25,8 +25,6 @@ class WebcamHandler(BaseHandler):
             return any([any([l.startswith(prefix) for prefix in x['prefices']])
                         for x in self.cams])
 
-
-
     def help(self, permission):
         if not self.enabled:
             return
@@ -35,7 +33,6 @@ class WebcamHandler(BaseHandler):
                 'summary': "Shows you snapshots from your webcam feeds",
                 'examples': ["show living room"],
             }
-
 
     def handle(self, message, **kwargs):
         l = message[5:].lower()
@@ -49,7 +46,6 @@ class WebcamHandler(BaseHandler):
                         return "Sorry, you don't get to see this camera."
         return "Whoopsie, this never happens"
 
-
     def handle_button(self, data, **kwargs):
         data = data.split('§', 1)
         cmd = data[0]
@@ -58,7 +54,6 @@ class WebcamHandler(BaseHandler):
             resp = self.get_snapshot(data[1])
             resp['answer'] = "Updated!"
             return resp
-
 
     def get_snapshot(self, cam):
         buttons = [[{
@@ -102,4 +97,3 @@ class WebcamHandler(BaseHandler):
                 'message': "{} Something went horribly wrong with {} webcam. :(".format(get_exclamation(), cam),
                 'buttons': buttons,
             }
-

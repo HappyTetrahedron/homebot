@@ -42,10 +42,8 @@ class WeatherHandler(BaseHandler):
             ],
         }
 
-
     def matches_message(self, message):
         return message.lower().startswith("weather")
-
 
     def handle(self, message, **kwargs):
         zip = self.config['zip']
@@ -98,10 +96,8 @@ class WeatherHandler(BaseHandler):
 
         return self.get_weather_data(zip, city_name, "tomorrow" in message)
 
-
     def find_name(self, meteo_city_parts):
         return meteo_city_parts[meteo_city_parts.index(METEO_LANGUAGE_CODE) + 1]
-
 
     def handle_button(self, data, **kwargs):
         parts = data.split(":", 1)
@@ -113,7 +109,6 @@ class WeatherHandler(BaseHandler):
             msg['answer'] = "Refreshed!"
             return msg
         return "Oh, something went wrong."
-
 
     def get_weather_data(self, zip, city_name, for_tomorrow):
         result = requests.get(METEO_VERSIONS_URL, timeout=7).json()
@@ -153,7 +148,5 @@ class WeatherHandler(BaseHandler):
             }]]
         }
 
-
     def de_unicodize(self, string):
         return normalize('NFD', string.lower()).encode('ascii', 'ignore').decode('ascii')
-

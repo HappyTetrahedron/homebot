@@ -36,7 +36,6 @@ class GroceryHandler(BaseHandler):
                 'extended': extended_help,
             }
 
-
     def matches_message(self, message):
         l = message.lower()
         return any([any([l.startswith(prefix) for prefix in x['add_prefices']])
@@ -62,7 +61,6 @@ class GroceryHandler(BaseHandler):
                     return "Sorry, you don't get to see this list."
 
         return "Whoopsie, this never happens"
-
 
     def handle_button(self, data, **kwargs):
         db = kwargs['db']
@@ -93,7 +91,6 @@ class GroceryHandler(BaseHandler):
             return msg
         return "Uh oh, something is off"
 
-
     def add_item(self, item, db, list_type):
         item = " ".join(item.strip().split())
         table = db['groceries']
@@ -104,7 +101,6 @@ class GroceryHandler(BaseHandler):
         }
         table.insert(new_item)
         return "{} was added to your {} list.".format(item, list_type)
-
 
     def grocery_list(self, db, list_type):
         table = db['groceries']

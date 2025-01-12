@@ -118,7 +118,6 @@ class PCHandler(BaseHandler):
                 "answer": "Gotcha!",
             }
 
-
     def get_workspaces(self):
         status, out, err = self.run_command("sudo ./getworkspaces")
         if status != 0:
@@ -148,7 +147,6 @@ class PCHandler(BaseHandler):
 
         return msg
 
-
     def shut_down(self):
         status, out, err = self.run_command("sudo ./shutdown")
         if status == 0:
@@ -172,7 +170,6 @@ class PCHandler(BaseHandler):
         else:
             return "There was some issue when trying to shut down your PC."
 
-
     def turn_power_off(self, force=False):
         if not force:
             if self.is_on():
@@ -181,7 +178,6 @@ class PCHandler(BaseHandler):
         if response.status_code == 200:
             return "Alright, I turned off your PC's power."
         return "I wasn't able to turn off your PC's power, sorry :("
-
 
     def turn_on(self, force=False):
         if not force:
@@ -199,16 +195,13 @@ class PCHandler(BaseHandler):
             return "I wasn't able to turn on your PC, sorry :("
         return "Your PC should now be turning on."
 
-
     def is_powered(self):
         status = json.loads(requests.get("{}/report".format(self.config['switch_ip'])).text)
         return status['relay']
 
-
     def is_on(self):
         status, out, err = self.run_command("echo love")
         return status == 0
-
 
     def run_command(self, command):
         cmd = self.gen_command(command)
@@ -221,7 +214,6 @@ class PCHandler(BaseHandler):
         err = process.stderr
         status = process.returncode
         return status, out.decode('UTF-8'), err.decode('UTF-8')
-
 
     def gen_command(self, command):
         return "ssh {}@{} -i {} '{}'".format(

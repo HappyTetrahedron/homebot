@@ -45,18 +45,15 @@ class MoatCatsHandler(BaseHandler):
             'examples': ["Have the cats been fed?"],
         }
 
-
     def matches_message(self, message):
         if not self.enabled:
             return
         return PATTERN.match(message) is not None
 
-
     def handle(self, message, **kwargs):
         if kwargs['permission'] < PERM_ADMIN:
             return "Sorry, you can't do this."
         return self.check_cats()
-
 
     def check_cats(self):
         try:

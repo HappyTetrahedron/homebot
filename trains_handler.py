@@ -57,7 +57,6 @@ class TrainsHandler(BaseHandler):
         super().__init__(config, messenger, service_hub, key="zvv", name="Train connections")
         self.config = config['trains']
 
-
     def help(self, permission):
         return {
             'summary': "Keeps an eye on the train schedule",
@@ -69,11 +68,9 @@ class TrainsHandler(BaseHandler):
             ],
         }
 
-
     def matches_message(self, message):
         return NEXT_REGEX.match(message) is not None \
             or NEXT_FROM_REGEX.match(message) is not None
-
 
     def handle(self, message, **kwargs):
         matches = NEXT_FROM_TO_REGEX.match(message)
@@ -91,7 +88,6 @@ class TrainsHandler(BaseHandler):
         if matches:
             types = self.keyword_to_type(matches.groups()[0])
             return self.stationboard_message(self.config['home_stations'], types or self.config['home_types'])
-
 
     def handle_button(self, data, **kwargs):
         db = kwargs['db']
@@ -165,7 +161,6 @@ class TrainsHandler(BaseHandler):
 
         return "Oh, looks like something went wrong..."
 
-
     def find_connection(self, from_query, to_query, stop_auto_refresh=False):
         connections = json.loads(requests.get(CONNECTION_URL, params={'from': from_query, 'to': to_query}, timeout=7).text)
 
@@ -236,7 +231,6 @@ class TrainsHandler(BaseHandler):
 
         }
 
-
     def find_stationboards(self, matches):
         groups = matches.groups()
         types = self.keyword_to_type(groups[0])
@@ -254,14 +248,12 @@ class TrainsHandler(BaseHandler):
             return "No stations found by that name :("
         return self.stationboard_message(stations, types)
 
-
     def keyword_to_type(self, keyword):
         if keyword.startswith("tram"):
             return [TRAM]
         if keyword.startswith("bus"):
             return [BUS]
         return None
-
 
     def stationboard_message(self, stations, types=None, stop_auto_refresh=False):
         stationboards = []
@@ -309,7 +301,6 @@ class TrainsHandler(BaseHandler):
             }]]
         }
 
-
     def run_periodically(self, db):
         table = db['train_auto_refresh']
         auto_refreshes = table.all()
@@ -322,22 +313,29 @@ class TrainsHandler(BaseHandler):
                 if self._debug:
                     logger.info("Removing auto-refresh for message {}".format(auto_refresh['message']))
                 table.delete(id=auto_refresh['id'])
-            self._messenger.send_message(msg,
-                              update_message_id=auto_refresh['message'],
-                              key=self.key,
-                              recipient_id=auto_refresh['actor'] if 'actor' in auto_refresh else None)
+            self._messenger.send_message(
+                msg,
+                update_message_id=auto_refresh['message'],
+                key=self.key,
+                recipient_id=auto_refresh['actor'] if 'actor' in auto_refresh else None,
+            )
 
 
     def get_auto_refresh_message(self, auto_refresh, continue_refreshing=True):
         msg = {}
         if 'from_station' in auto_refresh and auto_refresh['from_station'] is not None:
-            msg = self.find_connection(auto_refresh['from_station'], auto_refresh['to_station'],
-                                  stop_auto_refresh=continue_refreshing)
+            msg = self.find_connection(
+                auto_refresh['from_station'],
+                auto_refresh['to_station'],
+                stop_auto_refresh=continue_refreshing,
+            )
         elif 'stations' in auto_refresh and auto_refresh['stations'] is not None:
-            msg = self.stationboard_message(auto_refresh['stations'].split(','), auto_refresh['types'].split(','),
-                                       stop_auto_refresh=continue_refreshing)
+            msg = self.stationboard_message(
+                auto_refresh['stations'].split(','),
+                auto_refresh['types'].split(','),
+                stop_auto_refresh=continue_refreshing,
+            )
         return msg
-
 
     def format_duration_seconds(self, duration):
         duration = int(duration)
@@ -348,7 +346,6 @@ class TrainsHandler(BaseHandler):
         mins = duration // 60
         return self.format_duration(days, hours, mins)
 
-
     def format_duration_string(self, duration):
         p = duration.split('d')
         days = int(p[0])
@@ -358,7 +355,6 @@ class TrainsHandler(BaseHandler):
         hours = int(p[0])
         mins = int(p[1])
         return self.format_duration(days, hours, mins)
-
 
     def format_duration(self, days, hours, mins):
         dur = ""

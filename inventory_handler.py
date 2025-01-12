@@ -23,12 +23,10 @@ class InventoryHandler(BaseHandler):
                 'examples': ["The <item> is in <location>", "Where is the <item>?"],
             }
 
-
     def matches_message(self, message):
         return PLACE_PATTERN.match(message) is not None \
                or SEARCH_PATTERN.match(message) is not None \
                or LIST_PATTERN.match(message) is not None
-
 
     def handle(self, message, **kwargs):
         if kwargs['permission'] < PERM_ADMIN:
@@ -44,7 +42,6 @@ class InventoryHandler(BaseHandler):
         if match:
             return self.handle_list(match, db)
         return "Oh... uh... something went terribly wrong. I'm sorry."
-
 
     def handle_button(self, data, **kwargs):
         db = kwargs['db']

@@ -76,10 +76,8 @@ class ReminderHandler(BaseHandler):
             ],
         }
 
-
     def matches_message(self, message):
         return PATTERN.match(message) is not None
-
 
     def handle(self, message, **kwargs):
         db = kwargs['db']
@@ -135,7 +133,6 @@ class ReminderHandler(BaseHandler):
             }
         else:
             return reminder
-
 
     def handle_button(self, data, **kwargs):
         db = kwargs['db']
@@ -201,7 +198,6 @@ class ReminderHandler(BaseHandler):
                 'delete': True,
             }
         return answer
-
 
     def create_periodic_reminder(self, time_string, subject, separator_word, actor_id):
         now = datetime.datetime.now()
@@ -288,7 +284,6 @@ class ReminderHandler(BaseHandler):
             self.advance_periodic_reminder(reminder)
         return reminder
 
-
     def create_reminder_with_unspecified_time(self, subject, separator_word, actor_id):
         now = datetime.datetime.now()
         date_time = now.replace(hour=6, minute=0)
@@ -305,7 +300,6 @@ class ReminderHandler(BaseHandler):
             'actor': actor_id,
         }
         return reminder
-
 
     def create_onetime_reminder(self, time_string, subject, separator_word, actor_id):
         now = datetime.datetime.now()
@@ -365,7 +359,6 @@ class ReminderHandler(BaseHandler):
 
         return onetime_reminder
 
-
     def advance_periodic_reminder(self, reminder):
         if not reminder['periodic']:
             return
@@ -393,7 +386,6 @@ class ReminderHandler(BaseHandler):
                 reminder['next']
             ))
 
-
     def advance_by_a_month(self, date_time, months):
         new_month = date_time.month + months
         add_year = 0
@@ -420,7 +412,6 @@ class ReminderHandler(BaseHandler):
             date_time.minute
         )
 
-
     def unit_to_readable(self, unit, singular=False):
         if unit == 'h':
             return 'hour' if singular else 'hours'
@@ -428,14 +419,12 @@ class ReminderHandler(BaseHandler):
             return 'minute' if singular else 'minutes'
         return unit if singular else unit + 's'
 
-
     def reminder_to_string(self, reminder):
         return "Remember{} {}".format(
             ' to' if 'separator' not in reminder or reminder['separator'] is None else
             reminder['separator'] if len(reminder['separator']) <= 1 else
             " {}".format(reminder['separator']),
             reminder['subject'])
-
 
     def run_periodically(self, db):
         debug = self._debug
@@ -492,10 +481,14 @@ class ReminderHandler(BaseHandler):
                 } for snooze_type, snooze in SNOOZE_REMINDERS.items()
             ])
 
-            send({
-                'message': msg,
-                'buttons': buttons,
-            }, key=self.key, recipient_id=reminder['actor'] if 'actor' in reminder else None)
+            send(
+                {
+                  'message': msg,
+                    'buttons': buttons,
+                },
+                key=self.key,
+                recipient_id=reminder['actor'] if 'actor' in reminder else None,
+            )
 
             if debug:
                 logger.info("Updating reminder {}".format(count))
@@ -504,4 +497,3 @@ class ReminderHandler(BaseHandler):
                 logger.info("Finished reminder {}".format(count))
         if debug:
             logger.info("Sent out {} reminders".format(count))
-

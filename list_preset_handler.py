@@ -18,7 +18,6 @@ class ListPresetHandler(BaseHandler):
         else:
             self.enabled = False
 
-
     def help(self, permission):
         if not self.enabled:
             return
@@ -29,19 +28,16 @@ class ListPresetHandler(BaseHandler):
             'examples': ["list preset"],
         }
 
-
     def matches_message(self, message):
         if not self.enabled:
             return False
         l = message.lower().strip()
         return l == 'list preset'
 
-
     def handle(self, message, **kwargs):
         if kwargs['permission'] < PERM_ADMIN:
             return "You don't get to use the list presets."
         return self.initial_list_choice()
-
 
     def handle_button(self, data, **kwargs):
         db = kwargs['db']
@@ -64,7 +60,6 @@ class ListPresetHandler(BaseHandler):
 
         return "Uh oh, something is off"
 
-
     def initial_list_choice(self):
         buttons = []
         for list_type in self.lists:
@@ -81,7 +76,6 @@ class ListPresetHandler(BaseHandler):
             'buttons': buttons,
             'answer': get_affirmation(),
         }
-
 
     def process_list(self, preset_name, choices, db, finalize=False):
         list_preset = self.get_preset(preset_name)
@@ -149,7 +143,6 @@ class ListPresetHandler(BaseHandler):
 
             }
 
-
     def confirm_list(self, list_name, preset_name, list_items, choices):
         message = "The following items will be added to your {} list:\n\n".format(list_name)
 
@@ -180,7 +173,6 @@ class ListPresetHandler(BaseHandler):
             'buttons': buttons,
         }
 
-
     def store_list(self, list_name, list_items, db):
         message = "The following items were added to your {} list:\n\n".format(list_name)
         table = db['groceries']
@@ -200,7 +192,6 @@ class ListPresetHandler(BaseHandler):
             'answer': get_affirmation(),
         }
 
-
     def add_item(self, item, db, list_type):
         item = " ".join(item.strip().split())
         table = db['groceries']
@@ -211,7 +202,6 @@ class ListPresetHandler(BaseHandler):
         }
         table.insert(new_item)
         return "{} was added to your {} list.".format(item, list_type)
-
 
     def get_preset(self, list_name):
         return next((x for x in self.lists if x['name'] == list_name), None)
