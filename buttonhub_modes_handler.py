@@ -40,7 +40,9 @@ class ButtonhubModesHandler(BaseHandler):
             for mode in self.modes:
                 type = mode.get('type')
                 display_name = mode.get('display_name')
-                value = buttonhub_state.get(mode.get('path') or '')
+                topic = mode.get('topic') or ''
+                path = mode.get('path') or ''
+                value = (buttonhub_state.get(topic) or {}).get(path)
                 if type == 'boolean':
                     if value:
                         result.append(f'{display_name}: ON')
@@ -51,7 +53,7 @@ class ButtonhubModesHandler(BaseHandler):
                             result.append(f'{display_name}: {possible_value.get('display_name')}')
                             break
             if result:
-                message = '\n- '.join(result)
+                message = '\n- '+('\n- '.join(result))
             else:
                 message = 'No modes are active'
             return {

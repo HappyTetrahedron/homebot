@@ -13,7 +13,7 @@ class ButtonhubService:
             self.enabled = False
 
     def get_config(self, name):
-        self.config.get(name) or {}
+        return self.config.get(name) or {}
 
     def get_state(self):
         try:

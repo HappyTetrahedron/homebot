@@ -11,7 +11,7 @@ class ButtonhubBatteryHandler(BaseHandler):
         super().__init__(config, messenger, service_hub, key="buttonhub_battery", name="Buttonhub Batteries")
         self.buttonhub_service = service_hub.buttonhub
         self.enabled = False
-        if self.buttonhub_service:
+        if self.buttonhub_service.enabled:
             self.config = self.buttonhub_service.get_config('batteries')
             self.enabled = bool(self.config)
 
