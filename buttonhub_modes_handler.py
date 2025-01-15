@@ -1,7 +1,9 @@
 from base_handler import *
 from buttonhub_service import ButtonhubError
 
-from utils import PERM_ADMIN
+from utils import PERM_ADMIN, get_timestamp
+
+UPDATE_LIST = 'up'
 
 
 class ButtonhubModesHandler(BaseHandler):
@@ -33,7 +35,7 @@ class ButtonhubModesHandler(BaseHandler):
             return "Sorry, you can't do this."
         return self.check_modes()
 
-    def check_modes(self):
+    def check_modes(self, include_timestamp=False):
         try:
             result = []
             buttonhub_state = self.buttonhub_service.get_state()
@@ -56,11 +58,28 @@ class ButtonhubModesHandler(BaseHandler):
                 message = '\n- '+('\n- '.join(result))
             else:
                 message = 'No modes are active'
+            if include_timestamp:
+                message = message + f'\n\nUpdated: {get_timestamp()}'
             return {
                 'message': message,
+                'buttons': [
+                    [
+                        {
+                            'text': 'Update',
+                            'data': UPDATE_LIST,
+                        }
+                    ]
+                ],
             }
         except ButtonhubError:
             return {
                 'message': 'Failed to check modes :/',
                 'answer': 'Error!',
             }
+
+    def handle_button(self, data, **kwargs):
+        if data == UPDATE_LIST:
+            msg = self.check_modes(include_timestamp=True)
+            msg['answer'] = "Updated."
+            return msg
+        return "Uh oh, something is off"
