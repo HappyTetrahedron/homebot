@@ -1,7 +1,6 @@
 from base_handler import *
-import datetime
 import requests
-from utils import PERM_ADMIN
+from utils import PERM_ADMIN, get_timestamp
 from utils import get_exclamation
 from PIL import Image
 
@@ -71,8 +70,7 @@ class WebcamHandler(BaseHandler):
 
             message = f'{cam} camera'
             if include_timestamp:
-                timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                message = f'{message} ({timestamp})'
+                message = f'{message} ({get_timestamp()})'
 
             return {
                 'message': message,

@@ -1,8 +1,7 @@
 from base_handler import *
 from buttonhub_service import ButtonhubError
 
-from utils import PERM_ADMIN
-
+from utils import PERM_ADMIN, get_timestamp
 
 UPDATE_LIST = 'up'
 
@@ -36,7 +35,7 @@ class ButtonhubLightsHandler(BaseHandler):
             return "Sorry, you can't do this."
         return self.check_lights()
 
-    def check_lights(self):
+    def check_lights(self, include_timestamp=False):
         default_field = self.lights['default_field']
         default_on_state = self.lights['default_on_state']
 
@@ -56,6 +55,8 @@ class ButtonhubLightsHandler(BaseHandler):
                 message = 'No lights are on'
             else:
                 message = 'Lights are on in:\n- ' + '\n- '.join(lights_on_in)
+            if include_timestamp:
+                message = message + f'\n\nUpdated: {get_timestamp()}'
             return {
                 'message': message,
                 'buttons': [
@@ -75,7 +76,7 @@ class ButtonhubLightsHandler(BaseHandler):
 
     def handle_button(self, data, **kwargs):
         if data == UPDATE_LIST:
-            msg = self.check_lights()
+            msg = self.check_lights(include_timestamp=True)
             msg['answer'] = "Updated."
             return msg
         return "Uh oh, something is off"

@@ -1,7 +1,7 @@
 from base_handler import *
 from buttonhub_service import ButtonhubError
 
-from utils import PERM_ADMIN
+from utils import PERM_ADMIN, get_timestamp
 
 UPDATE_LIST = 'up'
 
@@ -34,7 +34,7 @@ class ButtonhubClimateHandler(BaseHandler):
             return "Sorry, you can't do this."
         return self.check_climate()
 
-    def check_climate(self):
+    def check_climate(self, include_timestamp=False):
         try:
             room_states = []
 
@@ -60,6 +60,9 @@ class ButtonhubClimateHandler(BaseHandler):
                 message = 'No sensor readings found'
             else:
                 message = '\n\n'.join(room_states)
+
+            if include_timestamp:
+                message = message + f'\n\nUpdated: {get_timestamp()}'
             return {
                 'message': message,
                 'buttons': [
@@ -79,7 +82,7 @@ class ButtonhubClimateHandler(BaseHandler):
 
     def handle_button(self, data, **kwargs):
         if data == UPDATE_LIST:
-            msg = self.check_climate()
+            msg = self.check_climate(include_timestamp=True)
             msg['answer'] = "Updated."
             return msg
         return "Uh oh, something is off"

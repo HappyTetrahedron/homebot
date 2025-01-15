@@ -2,7 +2,7 @@ from base_handler import *
 import datetime
 
 from buttonhub_service import ButtonhubError
-from utils import PERM_ADMIN
+from utils import PERM_ADMIN, get_timestamp
 
 UPDATE_LIST = 'up'
 
@@ -35,7 +35,7 @@ class ButtonhubBatteryHandler(BaseHandler):
             return "Sorry, you can't do this."
         return self.check_batteries()
 
-    def check_batteries(self):
+    def check_batteries(self, include_timestamp=False):
         try:
             battery_status = self._get_battery_status()
 
@@ -46,6 +46,8 @@ class ButtonhubBatteryHandler(BaseHandler):
                     '{}: {}%'.format(s['device'], s['battery'])
                     for s in battery_status
                 ])
+            if include_timestamp:
+                message = message + f'\n\nUpdated: {get_timestamp()}'
             return {
                 'message': message,
                 'buttons': [
@@ -83,7 +85,7 @@ class ButtonhubBatteryHandler(BaseHandler):
 
     def handle_button(self, data, **kwargs):
         if data == UPDATE_LIST:
-            msg = self.check_batteries()
+            msg = self.check_batteries(include_timestamp=True)
             msg['answer'] = "Updated."
             return msg
         return "Uh oh, something is off"

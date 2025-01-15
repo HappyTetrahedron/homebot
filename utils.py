@@ -1,3 +1,4 @@
+import datetime
 import random
 from unicodedata import normalize
 
@@ -178,3 +179,5 @@ def commonprefix(a, b):
             return a[:i]
     return a
 
+def get_timestamp():
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
