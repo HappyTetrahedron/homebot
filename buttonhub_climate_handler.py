@@ -53,6 +53,15 @@ class ButtonhubClimateHandler(BaseHandler):
                     pm25 = device_state.get('pm25')
                     if pm25 is not None:
                         room_state.append(f'- PM2.5: {pm25}')
+                    co2 = device_state.get('co2')
+                    if co2 is not None:
+                        room_state.append(f'- CO2: {co2} ppm')
+                    voc = device_state.get('voc')
+                    if voc is not None:
+                        room_state.append(f'- VOC: {voc} µg/m³')
+                    voc_index = device_state.get('voc_index')
+                    if voc_index is not None:
+                        room_state.append(f'- VOC index: {voc_index}')
                 if room_state:
                     room_states.append(room['name'] + ':\n' + ('\n'.join(room_state)))
 
