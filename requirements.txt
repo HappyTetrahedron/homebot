@@ -7,3 +7,5 @@ parsedatetime
 pyxdg
 matplotlib
 pillow
+standard-imghdr
+urllib3==1.26.15
