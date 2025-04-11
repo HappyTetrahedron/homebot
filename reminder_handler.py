@@ -8,7 +8,7 @@ from wekan_service import WekanService
 
 logger = logging.getLogger(__name__)
 
-PATTERN = re.compile('^remind(?:\s+me)?\s+(.+?)\s*(to|:|that|about)\s+(.+?)\s*$', flags=re.I)
+PATTERN = re.compile('^rem(?:ind|(?:em)?ber)(?:\s+me)?\s+(.+?)\s*(to|:|that|about)\s+(.+?)\s*$', flags=re.I)
 
 calendar = parsedatetime.Calendar()
 
