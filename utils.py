@@ -56,11 +56,11 @@ EXCLAMATIONS = [
     "Oh fudge!",
     "Ye gods!",
     "Fiddlesticks!",
-    "Zounds!"
+    "Zounds!",
     "Egads!",
     "Blast!",
     "Blazes!",
-    "Holey moley",
+    "Holey moley!",
 ]
 
 GENERIC_RESPONSES = [
