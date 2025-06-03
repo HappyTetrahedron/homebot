@@ -6,6 +6,8 @@ import itertools
 import datetime as dt
 from matplotlib import ticker
 # Map between Meteoswiss icon IDs and ConkyWeather font letters
+# To update the map, pull something like:
+# for i in `seq 1 200` ; do wget https://www.meteoswiss.admin.ch/static/resources/weather-symbols/$i.svg ; done
 weathericons = {
     1: "a",
     2: "b",
@@ -42,6 +44,41 @@ weathericons = {
     33: "g",
     34: "o",
     35: "e",
+    36: "k",
+    37: "o",
+    38: "k",
+    39: "o",
+    40: "l",
+    41: "k",
+    42: "l",
+    51: "A",
+    52: "B",
+    53: "C",
+    54: "D",
+    55: "f",
+    56: "G",
+    57: "O",
+    58: "O",
+    59: "G",
+    60: "O",
+    61: "O",
+    62: "K",
+    63: "K",
+    64: "h",
+    65: "p",
+    66: "p",
+    67: "i",
+    68: "p",
+    69: "p",
+    70: "j",
+    71: "x",
+    72: "q",
+    73: "l",
+    74: "l",
+    75: "m",
+    76: "B",
+    77: "9",
+    78: "0",
     101: "A",
     102: "B",
     103: "C",
@@ -76,8 +113,17 @@ weathericons = {
     132: "G",
     133: "G",
     134: "O",
-    135: "e"
+    135: "e",
+    136: "K",
+    137: "O",
+    138: "K",
+    139: "O",
+    140: "l",
+    141: "K",
+    142: "l"
 }
+
+default_icon = "-"
 
 
 # create a time format string from an unix timestamp
@@ -94,7 +140,7 @@ def generate_plot(weather_data, starttime=None):
     times = [ int(row[0]/1000) for k in [0, 1, 2] for row in j[k].get("temperature") ]
 
     # Extract icon information
-    icons = [ {"time":row.get("timestamp")/1000, "icon":weathericons[row.get("weather_symbol_id")]} for k in [0,1,2] for row in j[k].get("symbols") ]
+    icons = [ {"time":row.get("timestamp")/1000, "icon":weathericons.get(row.get("weather_symbol_id"), default_icon)} for k in [0,1,2] for row in j[k].get("symbols") ]
 
     # current time as reported by json, in seconds
     now = j[0].get("current_time") / 1000
