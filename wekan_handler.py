@@ -53,6 +53,8 @@ class WekanHandler(BaseHandler):
             return True
         if m.startswith('i do '):
             return True
+        if m.startswith('we do '):
+            return True
         if m.startswith('toggle task report'):
             return True
         return False
@@ -95,6 +97,14 @@ class WekanHandler(BaseHandler):
                 task = message[5:]
                 list_id = self.config['default_list']
             return self.create_card(kwargs['actor_id'], task, list_id, assign_to_me=True)
+        if m.startswith('we do'):
+            if m.startswith('we do eventually '):
+                task = message[17:]
+                list_id = self.config['backlog_list']
+            else:
+                task = message[6:]
+                list_id = self.config['default_list']
+            return self.create_cards_for_everyone(kwargs['actor_id'], task, list_id)
         if m.startswith('toggle task report'):
             return self.toggle_report(kwargs['actor_id'], kwargs['db'])
         elif any([m.endswith(' ' + it) for it in CARD_SYNONYMS]):
@@ -126,6 +136,7 @@ class WekanHandler(BaseHandler):
                 'message': "{}! I created the new task for you.".format(get_affirmation()),
                 'answer': get_affirmation(),
             }
+
         if cmd == DISMISS_LIST:
             args = data[1].split(':')
             lists = self.shorthand_to_lists(args[0].split(','))
@@ -193,7 +204,6 @@ class WekanHandler(BaseHandler):
 
             resp['answer'] = get_affirmation()
             return resp
-
 
         if cmd == ASSIGN:
             args = data[1].split(':')
@@ -385,6 +395,23 @@ class WekanHandler(BaseHandler):
         reply = {
             'message': "{}! I created the new task for you.".format(get_affirmation()),
             'buttons': buttons,
+        }
+        return reply
+
+    def create_cards_for_everyone(self, telegram_user, message, list_id):
+        for user in self.config['users']:
+            card_id = self.wekan_service.create_card(telegram_user, message, list_id)
+            if not card_id:
+                return f"{get_exclamation()} I couldn't associate you with a wekan user."
+            telegram_user_id = user['telegram_id']
+            self.wekan_service.assign_card(list_id, card_id, telegram_user_id)
+
+        reply = {
+            'message': "{}! I created a new task for everyone.".format(get_affirmation()),
+            'buttons': [[{
+                'text': 'Thanks!',
+                'data': REMOVE_BUTTONS,
+            }]],
         }
         return reply
 
