@@ -94,7 +94,7 @@ class ButtonhubBatteryHandler(BaseHandler):
         if not self.enabled:
             return
         now = datetime.datetime.now()
-        if now.hour != self.config['hour'] or now.minute != 0:
+        if now.hour != self.config['hour'] or now.minute != 0 or (now.day % 5) != 1:
             return
 
         threshold = self.config['warning_threshold']
