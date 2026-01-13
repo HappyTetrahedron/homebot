@@ -8,4 +8,4 @@ pyxdg
 matplotlib
 pillow
 standard-imghdr
-urllib3==1.26.15
+urllib3==2.6.3
