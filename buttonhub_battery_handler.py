@@ -106,7 +106,7 @@ class ButtonhubBatteryHandler(BaseHandler):
         if not endangered_devices:
             return
 
-        send = self._messenger.send_message
+        send = self._messenger.send_message_from_thread
         if len(endangered_devices) == 1:
             device = endangered_devices[0]
             message = "{} is low on battery ({}%)".format(device['device'], device['battery'])

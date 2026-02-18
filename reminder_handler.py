@@ -429,7 +429,7 @@ class ReminderHandler(BaseHandler):
     def run_periodically(self, db):
         debug = self._debug
         table = db['reminders']
-        send = self._messenger.send_message
+        send = self._messenger.send_message_from_thread
         now = datetime.datetime.now()
         if debug:
             logger.info("Querying reminders for {}...".format(now))

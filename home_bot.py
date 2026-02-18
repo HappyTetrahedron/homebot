@@ -95,6 +95,14 @@ class HomeBot:
             buttons.append(row)
         return InlineKeyboardMarkup(buttons)
 
+    def send_message_from_thread(self, message, **kwargs):
+        future = asyncio.run_coroutine_threadsafe(self.send_message(message, **kwargs), self.loop)
+        future.result()
+
+    def send_message_to_admins_from_thread(self, message):
+        future = asyncio.run_coroutine_threadsafe(self.send_message_to_all_admins(message), self.loop)
+        future.result()
+
     async def send_message(self, message, key=None, update_message_id=None, recipient_id=None):
         if recipient_id is None:
             recipient_id = self.config['owner_id']
@@ -318,7 +326,9 @@ class HomeBot:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
-        webserver.init(self.send_message_to_all_admins, self.config, loop)
+        self.loop = loop
+
+        webserver.init(self.send_message_to_admins_from_thread, self.config)
         t2 = threading.Thread(target=webserver.run)
         t2.setDaemon(True)
         t2.start()

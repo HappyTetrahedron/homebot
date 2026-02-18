@@ -485,7 +485,7 @@ class WekanHandler(BaseHandler):
     def run_periodically(self, db):
         debug = self._debug
         table = db['wekan']
-        send = self._messenger.send_message
+        send = self._messenger.send_message_from_thread
         if debug:
             logger.info("Querying wekan reports...")
 

@@ -7,11 +7,9 @@ app = Flask(__name__)
 params = {}
 
 
-def init(send_message_to_all_admins, config, loop):
+def init(send_message_to_all_admins, config):
     params['send'] = send_message_to_all_admins
     params['config'] = config
-    params['loop'] = loop
-
 
 def run():
     app.run(params['config']['host'], params['config']['port'])
@@ -21,6 +19,5 @@ def run():
 def forward_message():
     data = request.get_json(force=True)
     message = data['message']
-    future = asyncio.run_coroutine_threadsafe(params['send'](message), params['loop'])
-    future.result()
+    params['send'](message)
     return ""

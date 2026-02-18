@@ -313,7 +313,7 @@ class TrainsHandler(BaseHandler):
                 if self._debug:
                     logger.info("Removing auto-refresh for message {}".format(auto_refresh['message']))
                 table.delete(id=auto_refresh['id'])
-            self._messenger.send_message(
+            self._messenger.send_message_from_thread(
                 msg,
                 update_message_id=auto_refresh['message'],
                 key=self.key,
