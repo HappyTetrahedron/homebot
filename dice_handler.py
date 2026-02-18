@@ -2,8 +2,8 @@ from base_handler import *
 import random
 import re
 
-COIN_FLIP_REGEX = re.compile('^flip (.+) coins?', flags=re.I)
-DICE_ROLL_REGEX = re.compile('^roll.* (\d*)d(\d+)', flags=re.I)
+COIN_FLIP_REGEX = re.compile(r'^flip (.+) coins?', flags=re.I)
+DICE_ROLL_REGEX = re.compile(r'^roll.* (\d*)d(\d+)', flags=re.I)
 
 class DiceHandler(BaseHandler):
 

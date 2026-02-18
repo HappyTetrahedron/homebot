@@ -6,7 +6,7 @@ import re
 from moat_service import MoatError
 from utils import PERM_ADMIN
 
-PATTERN = re.compile('^(have the cats been fed|cats|do i need to feed the cats|should i feed the cats|do the cats need (feeding|food|to be fed)|is it (din|lun)[- ]?(din|lun) time|cat food|cats fed|were the cats fed)\??$', flags=re.I)
+PATTERN = re.compile(r'^(have the cats been fed|cats|do i need to feed the cats|should i feed the cats|do the cats need (feeding|food|to be fed)|is it (din|lun)[- ]?(din|lun) time|cat food|cats fed|were the cats fed)\??$', flags=re.I)
 
 POSITIVE_REPLIES = [
     'You should feed the cats.',

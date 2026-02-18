@@ -5,9 +5,10 @@ import threading
 import yaml
 import datetime
 import logging
+import asyncio
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
-from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackQueryHandler
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler
 from telegram.error import BadRequest
 import webserver
 import dataset
@@ -94,7 +95,7 @@ class HomeBot:
             buttons.append(row)
         return InlineKeyboardMarkup(buttons)
 
-    def send_message(self, message, key=None, update_message_id=None, recipient_id=None):
+    async def send_message(self, message, key=None, update_message_id=None, recipient_id=None):
         if recipient_id is None:
             recipient_id = self.config['owner_id']
         if isinstance(message, dict):
@@ -105,7 +106,7 @@ class HomeBot:
                 buttons = self.assemble_inline_buttons(message['buttons'], key)
             if 'photo' in message:
                 if update_message_id is not None:
-                    self.bot.edit_message_media(
+                    await self.bot.edit_message_media(
                         chat_id=recipient_id,
                         message_id=update_message_id,
                         reply_markup=buttons,
@@ -116,14 +117,14 @@ class HomeBot:
                         )
                     )
                 else:  # new photo
-                    self.bot.send_photo(recipient_id,
+                    await self.bot.send_photo(recipient_id,
                                         open(message['photo'], 'rb'),
                                         caption=message.get('message'),
                                         reply_markup=buttons,
                                         parse_mode=message.get('parse_mode'))
             else:
                 if update_message_id is not None:
-                    self.bot.edit_message_text(
+                    await self.bot.edit_message_text(
                         text=message['message'],
                         reply_markup=buttons,
                         chat_id=recipient_id,
@@ -131,33 +132,33 @@ class HomeBot:
                         parse_mode=message.get('parse_mode')
                     )
                 else:
-                    self.bot.send_message(recipient_id,
+                    await self.bot.send_message(recipient_id,
                                           message['message'],
                                           reply_markup=buttons,
                                           parse_mode=message.get('parse_mode'))
         else:
             if update_message_id is not None:
-                self.bot.edit_message_text(
+                await self.bot.edit_message_text(
                     text=message,
                     chat_id=recipient_id,
                     message_id=update_message_id
                 )
             else:
-                self.bot.send_message(recipient_id, message)
+                await self.bot.send_message(recipient_id, message)
 
-    def send_message_to_all_admins(self, message):
+    async def send_message_to_all_admins(self, message):
         recipients = [self.config['owner_id']]
         for admin_id in self.config['admin_ids']:
             recipients.append(admin_id)
         for recipient_id in recipients:
-            self.send_message(message, recipient_id=recipient_id)
+            await self.send_message(message, recipient_id=recipient_id)
 
-    def handle_message(self, update, context):
+    async def handle_message(self, update, context):
         permission = self.get_permissions(update.message.from_user.id)
         if self.config['debug']:
             logger.info("Received message from {}".format(update.message.from_user.id))
         if permission not in PERMISSIONS:
-            update.message.reply_text("You're not my master. I won't talk to you!")
+            await update.message.reply_text("You're not my master. I won't talk to you!")
             return
 
         matched_handler = None
@@ -174,11 +175,11 @@ class HomeBot:
                 actor_id=update.message.from_user.id,
                 permission=permission,
             )
-            self.send_message(reply, matched_handler.key, recipient_id=update.message.from_user.id)
+            await self.send_message(reply, matched_handler.key, recipient_id=update.message.from_user.id)
         else:
-            update.message.reply_text(get_generic_response())
+            await update.message.reply_text(get_generic_response())
 
-    def handle_inline_button(self, update, context):
+    async def handle_inline_button(self, update, context):
         query = update.callback_query
         data = update.callback_query.data
 
@@ -189,7 +190,7 @@ class HomeBot:
         data = data.split('#', 1)
 
         if len(data) < 2:
-            query.answer("Something's wrong with this button.")
+            await query.answer("Something's wrong with this button.")
             return
 
         key = data[0]
@@ -210,7 +211,7 @@ class HomeBot:
                         if answer.get('buttons'):
                             buttons = self.assemble_inline_buttons(answer['buttons'], key)
                         if 'photo' in answer:
-                            context.bot.edit_message_media(
+                            await context.bot.edit_message_media(
                                 chat_id=query.message.chat.id,
                                 message_id=query.message.message_id,
                                 reply_markup=buttons,
@@ -222,7 +223,7 @@ class HomeBot:
                             )
                         else:
                             try:
-                                context.bot.edit_message_text(
+                                await context.bot.edit_message_text(
                                     text=answer['message'],
                                     reply_markup=buttons,
                                     chat_id=query.message.chat.id,
@@ -233,16 +234,16 @@ class HomeBot:
                                 if "Message is not modified" not in err.message:
                                     raise err
                     if 'delete' in answer and answer['delete']:
-                        context.bot.delete_message(
+                        await context.bot.delete_message(
                             chat_id=query.message.chat.id,
                             message_id=query.message.message_id
                         )
-                    query.answer(answer['answer'])
+                    await query.answer(answer['answer'])
                 else:
-                    query.answer(answer)
+                    await query.answer(answer)
 
     # Help command handler
-    def handle_help(self, update, context):
+    async def handle_help(self, update, context):
         """Send a message when the command /help is issued."""
         helptext = "I am HappyTetrahedron's personal butler.\n\b" \
                    "If you are not HappyTetrahedron, I fear I won't be useful to you."
@@ -250,7 +251,7 @@ class HomeBot:
         permission = self.get_permissions(update.message.from_user.id)
 
         if permission not in PERMISSIONS:
-            update.message.reply_text(helptext, parse_mode="Markdown")
+            await update.message.reply_text(helptext, parse_mode="Markdown")
             return
 
         helptext = "I am HappyTetrahedron's personal butler.\n\n"
@@ -263,10 +264,10 @@ class HomeBot:
                     helptext += " _{}_\n".format(example)
                 helptext += "\n"
 
-        update.message.reply_text(helptext, parse_mode="Markdown")
+        await update.message.reply_text(helptext, parse_mode="Markdown")
 
     # Error handler
-    def handle_error(self, update, context):
+    async def handle_error(self, update, context):
         """Log Errors caused by Updates."""
         logger.warning('Update "%s" caused error "%s"', update, context.error)
         if self.config['debug']:
@@ -287,8 +288,8 @@ class HomeBot:
 
         """Start the bot."""
         # Create the EventHandler and pass it your bot's token.
-        updater = Updater(config['token'], use_context=True)
-        self.bot = updater.bot
+        app = Application.builder().token(config['token']).build()
+        self.bot = app.bot
 
         service_hub = ServiceHub(config)
 
@@ -300,25 +301,30 @@ class HomeBot:
         t = threading.Thread(target=self.scheduler_run)
         t.start()
 
-        # Get the dispatcher to register handlers
-        dp = updater.dispatcher
+        app.add_handler(CommandHandler("help", self.handle_help))
 
-        dp.add_handler(CommandHandler("help", self.handle_help))
-
-        dp.add_error_handler(self.handle_error)
+        app.add_error_handler(self.handle_error)
 
         # Callback queries from button presses
-        dp.add_handler(CallbackQueryHandler(self.handle_inline_button))
+        app.add_handler(CallbackQueryHandler(self.handle_inline_button))
 
-        dp.add_handler(MessageHandler(None, self.handle_message))
+        app.add_handler(MessageHandler(None, self.handle_message))
 
-        # Start the Bot
-        updater.start_polling()
+        loop = None
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            # No running event loop, create and set a new one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
 
-        webserver.init(self.send_message_to_all_admins, self.config)
-        webserver.run()
+        webserver.init(self.send_message_to_all_admins, self.config, loop)
+        t2 = threading.Thread(target=webserver.run)
+        t2.setDaemon(True)
+        t2.start()
 
-        updater.idle()
+        app.run_polling()
+
 
         self.exit.set()
 

@@ -8,7 +8,7 @@ from wekan_service import WekanService
 
 logger = logging.getLogger(__name__)
 
-PATTERN = re.compile('^rem(?:ind|(?:em)?ber)(?:\s+me)?\s+(.+?)\s*(to|:|that|about)\s+(.+?)\s*$', flags=re.I)
+PATTERN = re.compile(r'^rem(?:ind|(?:em)?ber)(?:\s+me)?\s+(.+?)\s*(to|:|that|about)\s+(.+?)\s*$', flags=re.I)
 
 calendar = parsedatetime.Calendar()
 
@@ -238,7 +238,7 @@ class ReminderHandler(BaseHandler):
             date_time, parsed = calendar.parseDT(contains_date)
             if parsed == 0:
                 if unit == 'month':
-                    day = int(re.sub('\D', '', contains_date))
+                    day = int(re.sub(r'\D', '', contains_date))
                     if 0 < day < 29:  # sorry we can't handle february otherwise.
                         date_time = datetime.datetime(year=now.year, month=now.month, day=day, hour=6, minute=0)
                     else:

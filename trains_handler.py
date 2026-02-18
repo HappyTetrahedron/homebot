@@ -8,11 +8,11 @@ import re
 
 logger = logging.getLogger(__name__)
 
-NEXT_REGEX = re.compile('^(?:next\s+)?(trains?|trams?|bus(?:ses)?|conn(?:ection)?s?)$',
+NEXT_REGEX = re.compile(r'^(?:next\s+)?(trains?|trams?|bus(?:ses)?|conn(?:ection)?s?)$',
                         flags=re.I)
-NEXT_FROM_REGEX = re.compile('^(?:next\s+)?(trains?|trams?|bus(?:ses)?|conn(?:ection)?s?)\s+from\s+(.+)$',
+NEXT_FROM_REGEX = re.compile(r'^(?:next\s+)?(trains?|trams?|bus(?:ses)?|conn(?:ection)?s?)\s+from\s+(.+)$',
                         flags=re.I)
-NEXT_FROM_TO_REGEX = re.compile('(?:^next\s+)?(trains?|trams?|bus(?:ses)?|conn(?:ection)?s?)\s+from\s+(.+)\s+to\s+(.+)$',
+NEXT_FROM_TO_REGEX = re.compile(r'(?:^next\s+)?(trains?|trams?|bus(?:ses)?|conn(?:ection)?s?)\s+from\s+(.+)\s+to\s+(.+)$',
                         flags=re.I)
 
 STATIONBOARD_URL = "http://transport.opendata.ch/v1/stationboard?id={}&limit=30"

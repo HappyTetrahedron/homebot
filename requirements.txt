@@ -1,4 +1,4 @@
-python-telegram-bot==v13.15
+python-telegram-bot==v22.6
 requests
 flask
 pyyaml
@@ -8,4 +8,3 @@ pyxdg
 matplotlib
 pillow
 standard-imghdr
-urllib3==1.26.15

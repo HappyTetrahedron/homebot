@@ -3,11 +3,11 @@ import re
 import datetime
 from utils import fuzzy_match, PERM_ADMIN
 
-PLACE_PATTERN = re.compile('^\s*the\s+(.+?)\s+(is|are)\s+(.+?)\s+the\s+(.+?)\.?\s*$',
+PLACE_PATTERN = re.compile(r'^\s*the\s+(.+?)\s+(is|are)\s+(.+?)\s+the\s+(.+?)\.?\s*$',
                            flags=re.I)
-SEARCH_PATTERN = re.compile('^\s*where\s+(is|are)\s+(?:all\s+)?the\s+(.+?)\??\s*$',
+SEARCH_PATTERN = re.compile(r'^\s*where\s+(is|are)\s+(?:all\s+)?the\s+(.+?)\??\s*$',
                             flags=re.I)
-LIST_PATTERN = re.compile('^\s*what(?:\s+is|\'s)\s+(.+?)\s+the\s+(.+?)\??\s*$',
+LIST_PATTERN = re.compile(r'^\s*what(?:\s+is|\'s)\s+(.+?)\s+the\s+(.+?)\??\s*$',
                           flags=re.I)
 
 
