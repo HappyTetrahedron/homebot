@@ -21,6 +21,7 @@ import trains_handler
 import pc_handler
 import webcam_handler
 import dice_handler
+import calendar_handler
 import buttonhub_flows_handler
 import buttonhub_battery_handler
 import buttonhub_lights_handler
@@ -57,6 +58,7 @@ HANDLER_CLASSES = [
     weather_handler.WeatherHandler,
     webcam_handler.WebcamHandler,
     wekan_handler.WekanHandler,
+    calendar_handler.CalendarHandler,
 ]
 
 class HomeBot:

@@ -181,3 +181,10 @@ def commonprefix(a, b):
 
 def get_timestamp():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+def escape_for_markdown(text):
+    md_special_chars = "\\`*_{}[]#+-.!"
+    for char in md_special_chars:
+        if char in text:
+            text = text.replace(char, "\\"+char)
+    return text

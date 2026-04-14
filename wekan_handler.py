@@ -427,7 +427,7 @@ class WekanHandler(BaseHandler):
             table.insert(entry)
         else:
             entry['enabled'] = not entry['enabled']
-            entry['next_message'] = self.get_next_reminder_date(),
+            entry['next_message'] = self.get_next_reminder_date()
             table.update(entry, ['actor'])
 
         if entry['enabled']:
