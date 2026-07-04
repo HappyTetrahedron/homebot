@@ -105,7 +105,7 @@ class ReminderHandler(BaseHandler):
 
         elif message.lower().startswith("remind me to ") or message.lower().startswith("rember me to "):
             separator_word = "to"
-            subject = message[(message.lower().index("to ")+4):]
+            subject = message[(message.lower().index("to ")+3):]
             reminder = self.create_reminder_with_unspecified_time(subject, separator_word, actor_id)
             msg = "I set up your reminder for {}"
 
