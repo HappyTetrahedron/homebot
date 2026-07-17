@@ -75,7 +75,7 @@ class WebcamHandler(BaseHandler):
             if include_timestamp:
                 message = f'{message} ({get_timestamp()})'
 
-            custom_message = resp.headers['X-Cam-Message']
+            custom_message = resp.headers.get('X-Cam-Message')
             if custom_message:
                 message = message + '\n' + custom_message
 
