@@ -1,8 +1,11 @@
 from base_handler import *
+import logging
 import requests
 from utils import PERM_ADMIN, get_timestamp
 from utils import get_exclamation
 from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 UPDATE = 'UP'
 NOIMAGE = 'noimage.png'
@@ -99,7 +102,8 @@ class WebcamHandler(BaseHandler):
                 'buttons': buttons,
             }
         except Exception as e:
-            print(e)
+            logger.error("Failed to get/send webcam image")
+            logger.exception(e)
             return {
                 'photo': NOIMAGE,
                 'message': "{} Something went horribly wrong with {} webcam. :(".format(get_exclamation(), cam),
