@@ -16,7 +16,7 @@ METEO_PAGE_URL = "https://www.meteoswiss.admin.ch/home.html?tab=overview"
 
 METEO_VERSIONS_URL = "https://www.meteoswiss.admin.ch/product/output/versions.json"
 
-METEO_FORECAST_URL = "https://www.meteoswiss.admin.ch/product/output/forecast-chart/version__{}/en/{}.json"
+METEO_FORECAST_URL = "https://www.meteoswiss.admin.ch/product/output/forecast-chart-v2/version__{}/en/{}.json"
 METEO_SEARCH_URL = "https://www.meteoswiss.admin.ch/static/resources/local-forecast-search/{}.json"
 
 METEO_API_HEADERS = {"referer": "https://www.meteoswiss.admin.ch/home.html?tab=overview"}
@@ -113,7 +113,7 @@ class WeatherHandler(BaseHandler):
     def get_weather_data(self, zip, city_name, for_tomorrow):
         result = requests.get(METEO_VERSIONS_URL, timeout=7).json()
 
-        version_timestamp = result["forecast-chart"]
+        version_timestamp = result["forecast-chart-v2"]
 
         json_url = METEO_FORECAST_URL.format(version_timestamp, zip)
 
