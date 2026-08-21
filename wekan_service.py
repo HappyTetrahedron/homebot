@@ -138,7 +138,8 @@ class WekanService:
             'Accept': 'application/json',
             'Content-Type': 'application/json',
         }
-        url = f'{base_url}/api/boards/{self.config['board']}/{path}'
+        board = self.config['board']
+        url = f'{base_url}/api/boards/{board}/{path}'
         if payload:
             if method == 'GET':
                 method = 'POST'

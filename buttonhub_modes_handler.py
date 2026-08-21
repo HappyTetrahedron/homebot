@@ -52,14 +52,16 @@ class ButtonhubModesHandler(BaseHandler):
                     values = (mode.get('values') or [])
                     for possible_value in values:
                         if value == possible_value.get('name'):
-                            result.append(f'{display_name}: {possible_value.get('display_name')}')
+                            pvalue = possible_value.get('display_name')
+                            result.append(f'{display_name}: {pvalue}')
                             break
             if result:
                 message = '\n- '+('\n- '.join(result))
             else:
                 message = 'No modes are active'
             if include_timestamp:
-                message = message + f'\n\nUpdated: {get_timestamp()}'
+                ts = get_timestamp()
+                message = message + f'\n\nUpdated: {ts}'
             return {
                 'message': message,
                 'buttons': [

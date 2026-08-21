@@ -383,9 +383,11 @@ class WekanHandler(BaseHandler):
 
         if list_id == self.config['default_list'] and not assign_to_me:
             for user in self.config['users']:
+                tid = user['telegram_id']
+                shorthand = self.card_to_shorthand(card_id, list_id)
                 buttons.append([{
                     'text': 'Assign to {}'.format(user['name']),
-                    'data': f'{ASSIGN}:{user['telegram_id']}:{self.card_to_shorthand(card_id, list_id)}',
+                    'data': f'{ASSIGN}:{tid}:{shorthand}',
                 }])
 
             buttons.append([{
