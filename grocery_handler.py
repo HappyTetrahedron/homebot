@@ -14,9 +14,15 @@ class GroceryHandler(BaseHandler):
 
     def __init__(self, config, messenger, service_hub):
         super().__init__(config, messenger, service_hub, key="gro", name="Grocery Lists")
-        self.lists = config['groceries']['lists']
+        if config.get('groceries',{}).get('lists', []):
+            self.lists = config['groceries']['lists']
+            self.enabled = True
+        else:
+            self.enabled = False
 
     def help(self, permission):
+        if not self.enabled:
+            return
         if permission >= PERM_ADMIN:
             example_list = next(iter(self.lists), None)
             example_add = next(iter(example_list['add_prefices'] or []), None)
@@ -37,6 +43,8 @@ class GroceryHandler(BaseHandler):
             }
 
     def matches_message(self, message):
+        if not self.enabled:
+            return False
         l = message.lower()
         return any([any([l.startswith(prefix) for prefix in x['add_prefices']])
                     or any([l.startswith(prefix) for prefix in x['show_prefices']])
