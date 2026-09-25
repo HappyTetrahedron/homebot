@@ -44,7 +44,7 @@ class ButtonhubLightsHandler(BaseHandler):
 
             buttonhub_state = self.buttonhub_service.get_state()
             for room in self.rooms:
-                for device in room['lights']:
+                for device in room.get('lights', []):
                     device_name = device['name']
                     is_on = (buttonhub_state.get(device_name) or {}).get(default_field) == default_on_state
                     if is_on:
